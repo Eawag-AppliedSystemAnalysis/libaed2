@@ -67,7 +67,7 @@ MODULE aed2_carbon
 !
    TYPE,extends(aed2_model_data_t) :: aed2_carbon_data_t
       !# Variable identifiers
-      INTEGER  :: id_dic, id_pH, id_ch4, id_oxy, id_talk, id_ch4_bub
+      INTEGER  :: id_dic, id_pH, id_co2, id_ch4, id_oxy, id_talk, id_ch4_bub    ! Added co2, FB, 2020
       INTEGER  :: id_Fsed_dic, id_Fsed_ch4
       INTEGER  :: id_temp, id_salt
       INTEGER  :: id_wind, id_vel, id_depth
@@ -137,7 +137,7 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    AED_REAL          :: Ksed_ch4         = 30.0
    AED_REAL          :: theta_sed_ch4    = 1.0
    CHARACTER(len=64) :: Fsed_ch4_variable=''
-   AED_REAL          :: atm_co2          = 367e-6
+   AED_REAL          :: atm_co2          = 400e-6
    AED_REAL          :: atm_ch4          = 1.76e-6
    AED_REAL          :: Rch4ox           = 0.01
    AED_REAL          :: Kch4ox           = 0.01
@@ -273,6 +273,8 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    !# Register diagnostic variables
    data%id_pco2 = aed2_define_diag_variable('pCO2','atm', 'pCO2')
 
+   data%id_co2 = aed2_define_diag_variable('CO2', 'mmol/m**3', 'CO2') ! Added by FB, 2020
+   
    data%id_sed_dic = aed2_define_sheet_diag_variable('sed_dic','mmol/m**2/d', &
                             'CO2 exchange across sed/water interface')
 
@@ -304,8 +306,7 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    data%id_par  = aed2_locate_global('par')
    data%id_dz   = aed2_locate_global('layer_ht')
    data%id_vel  = aed2_locate_global('cell_vel')           ! needed for k600
-   data%id_depth= aed2_locate_global('depth')
-!  data%id_depth= aed2_locate_global('layer_ht')
+   data%id_depth= aed2_locate_global('depth')               ! Bugfix by FB, 2020
    data%id_wind = aed2_locate_global_sheet('wind_speed')
    IF( data%simCH4ebb ) data%id_tau  = aed2_locate_global_sheet('taub')
 
@@ -384,7 +385,7 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
 
    ! Temporary variables
 
-   AED_REAL :: pCO2 = 0.,FCO2,FCH4,henry
+   AED_REAL :: pCO2 = 0., co2 = 0.,FCO2,FCH4,henry      ! co2 added by FB, 2020
    AED_REAL :: Ko,kCH4,KCO2, CH4solub
    AED_REAL :: Tabs,windHt,atm
    AED_REAL :: A1,A2,A3,A4,B1,B2,B3,logC
@@ -441,7 +442,10 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
        IF( data%alk_mode == 1 ) THEN
          ! talk = 520.1 + 51.24*S  ! Atlantic (Millero 1998) from fabm, not suitable for estuaries
          ! talk = 1136.1 + 1.2*S*S + 2.8*S !Chesapeake Bay (George et al., 2013)
-         talk =  1627.4 + 22.176*S   !regression from Naomi's data on Caboolture
+         !talk =  1627.4 + 22.176*S   !regression from Naomi's data on Caboolture
+
+         talk = 11960*S       ! Relationship from Wüest et al., 2009, added by FB, 2020
+
          a    =  8.24493d-1 - 4.0899d-3*T + 7.6438d-5*T**2 - 8.2467d-7*T**3 + 5.3875d-9*T**4
          b    = -5.72466d-3 + 1.0227d-4*T - 1.6546d-6*T**2
          c    =  4.8314d-4
@@ -522,18 +526,21 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
 
        ENDIF
 
-       CALL CO2SYS(T,S,talk,TCO2,pCO2,pH)
+       CALL CO2SYS(T,S,talk,TCO2,pCO2,CO2,pH) ! Modified by FB, 2020
 
        ! Adjust outputs back to units used in the parent model code (e.g. mmol/m3) if appropriate
        ! note the output pCO2 is in unit of ATM
        ! pCO2 = pCO2*1.0D6   ! partial pressure of co2 in water
        ! _STATE_VAR_(data%id_talk) = talk*(1.0D6)           ! total alkalinity (umol/kg)
        _DIAG_VAR_(data%id_pco2) = pCO2
+       _DIAG_VAR_(data%id_co2) = CO2      ! Added by FB, 2020
 
      ELSEIF ( data%co2_model == 2 ) THEN
        !# Use the Butler CO2 code for computing pCO2 & pH
        pCO2 = aed2_carbon_co2(data%ionic,temp,dic,ph)*1e-6 / Ko  !(=atm), use Yanti's script for pCO2
+       CO2 = aed2_carbon_co2(data%ionic,temp,dic,ph)    ! Added by FB, 2020
        _DIAG_VAR_(data%id_pco2) = pCO2
+       _DIAG_VAR_(data%id_co2) = CO2        ! Added by FB, 2020
 
      ELSEIF ( data%co2_model == 0 ) THEN
        !# Use the aed2_geochem module for computing pCO2 & pH
@@ -669,6 +676,14 @@ SUBROUTINE aed2_calculate_benthic_carbon(data,column,layer_idx)
       dic_flux = Fsed_dic * oxy/(data%Ksed_dic+oxy) * (data%theta_sed_dic**(temp-20.0))
       ch4_flux = Fsed_ch4 * data%Ksed_ch4/(data%Ksed_ch4+oxy) * (data%theta_sed_ch4**(temp-20.0))
       IF( data%simCH4ebb ) ebb_flux = Fsed_ch4_ebb * (data%theta_sed_ch4**(temp-20.0))
+
+      ! 1/2 of the produced methane comes from geogenic CO2 reduction, added by FB, 2020
+      if (depth > 250) then
+        dic_flux = dic_flux - 1*ch4_flux
+        ch4_flux = ch4_flux + 1*ch4_flux
+      end if
+      !write(6,*) depth, ch4_flux*0.012*3600*24*365
+
    ELSE
       ! Sediment flux dependent on temperature only.
       dic_flux = Fsed_dic * (data%theta_sed_dic**(temp-20.0))
@@ -727,6 +742,10 @@ SUBROUTINE aed2_calculate_benthic_carbon(data,column,layer_idx)
    ! Note that this must include the fluxes to and from the pelagic.
    !_FLUX_VAR_B_(data%id_ben_dic) = _FLUX_VAR_B_(data%id_ben_dic) + (-dic_flux/secs_per_day)
 
+   ! Also store sediment flux as diagnostic variable.
+   _DIAG_VAR_S_(data%id_sed_dic) = dic_flux
+
+
 
 END SUBROUTINE aed2_calculate_benthic_carbon
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -744,7 +763,7 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
 !
 !LOCALS
    ! State
-   AED_REAL :: dic, pH, pCO2, temp, salt
+   AED_REAL :: dic, pH, CO2, pCO2, temp, salt ! Added co2, FB, 2020
    AED_REAL :: S,T,a,b,c,dcf,talk = 0.,TCO2 = 0.,ca,bc,cb,HENRY
    AED_REAL :: p00,p10,p01,p20,p11,p02
 
@@ -753,6 +772,7 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
    IF(.NOT.data%simDIC) RETURN
 
     pCO2 = zero_
+    CO2 = zero_       ! Added by FB, 2020
     pH   = _STATE_VAR_(data%id_pH) ! pH   = zero_
 
     !# Retrieve current (local) state variable values.
@@ -772,7 +792,10 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
 
         ! talk = 520.1 + 51.24*S  ! Atlantic (Millero 1998) from fabm, not suitable for estuaries
         ! talk = 1136.1 + 1.2*S*S + 2.8*S !Chesapeake Bay (George et al., 2013)
-        talk =  1627.4 + 22.176*S   !regression from Naomi's data on Caboolture
+        !talk =  1627.4 + 22.176*S   !regression from Naomi's data on Caboolture
+
+        talk = 11960*S          ! From Wüest, 2009, added by FB, 2020
+        
         a    =  8.24493d-1 - 4.0899d-3*T + 7.6438d-5*T**2 - 8.2467d-7*T**3 + 5.3875d-9*T**4
         b    = -5.72466d-3 + 1.0227d-4*T - 1.6546d-6*T**2
         c    =  4.8314d-4
@@ -855,12 +878,13 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
 
       !CALL CO2DYN ( TCO2, talk, T, S, pCO2, pH, HENRY, ca, bc, cb)
 
-      CALL CO2SYS(T,S,talk,TCO2,pCO2,pH)
+      CALL CO2SYS(T,S,talk,TCO2,pCO2,CO2,pH)    ! Modified by FB, 2020
 
     ENDIF
 
     !# SET PCO2 & pH as returned
     _DIAG_VAR_(data%id_pco2) = pCO2
+    _DIAG_VAR_(data%id_co2) = CO2               ! Added by FB, 2020
     _STATE_VAR_(data%id_pH)  =  pH
 
 END SUBROUTINE aed2_equilibrate_carbon
@@ -966,11 +990,11 @@ PURE AED_REAL FUNCTION aed2_carbon_co2(ionic, temp, dic, pH)
 END FUNCTION aed2_carbon_co2
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,pH00)
+SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   REAL,    INTENT(IN)   :: Tem, Sal
   REAL,    INTENT(IN)   :: TC0, TA0
-  REAL,    INTENT(OUT)  :: fCO2xx,pH00
+  REAL,    INTENT(OUT)  :: fCO2xx,CO2,pH00              ! Added co2, by FB, 2020
   ! LOCAL
   REAL                  :: PRE, K0, KS, kF, fH, KB, KW, KP1, KP2, KP3, KSi = 0., K1, K2, TB, TP, TS, TF, TSi, TC, TA
 
@@ -993,7 +1017,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,pH00)
   Call Cal_pHfromTATC(TA, TC, pH00, K1, K2, TB, KB, KW, KP1, KP2, KP3,&
                            & TP, TSi, TS, KS, KSi, TF, KF)
 
-  Call Cal_fCO2fromTCpH(TC,pH00,fCO2xx,K1,K2,K0)
+  Call Cal_fCO2fromTCpH(TC,pH00,fCO2xx,CO2,K1,K2,K0)          ! Modified by FB, 2020
 
 
   END SUBROUTINE CO2SYS
@@ -1217,17 +1241,21 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,pH00)
 
   END SUBROUTINE Cal_pHfromTATC
 
-  SUBROUTINE Cal_fCO2fromTCpH(TCx,pHx,fCO2x,K1,K2,K0)
+  SUBROUTINE Cal_fCO2fromTCpH(TCx,pHx,fCO2x,CO2,K1,K2,K0)       ! Modified by FB, 2020
 
   REAL,     INTENT(in) :: TCx, pHx, K1, K2, K0
-  REAL,     INTENT(out):: fCO2x
+  REAL,     INTENT(out):: fCO2x, CO2                            ! Added co2, by FB, 2020
 
   REAL                 :: H  ! local
 
+! Modified by FB, 2020
   H           = 10.**(-pHx)
-  fCO2x       = TCx*H*H/(H*H + K1*H + K1*K2)/K0
+  CO2       = TCx*H*H/(H*H + K1*H + K1*K2)
+  fCO2x     = CO2/K0
+  CO2       = CO2*1000*1000
 
-END SUBROUTINE Cal_fCO2fromTCpH
+  END SUBROUTINE Cal_fCO2fromTCpH
+
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
