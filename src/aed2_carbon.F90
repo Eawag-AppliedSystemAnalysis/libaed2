@@ -7,7 +7,10 @@
 !#      School of Agriculture and Environment                                  #
 !#      The University of Western Australia                                    #
 !#                                                                             #
-!#      http://aquatic.science.uwa.edu.au/                                     #
+!#      http://aquatic.science.uwa.edu.au/									   #
+!#									   										   #
+!#	Adjusted to use with Simstrat for Lake Kivu by:							   #
+!#		Fabian Bärenbold, 2020                                     			   #
 !#                                                                             #
 !#  Copyright 2013 - 2020 -  The University of Western Australia               #
 !#                                                                             #
