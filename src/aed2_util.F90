@@ -436,6 +436,11 @@ PURE AED_REAL FUNCTION aed2_gas_piston_velocity(wshgt,wind,tem,sal,vel,depth,  &
           a = 5.9*windsp - 49.3
         ENDIF
         k_wind = a * (schmidt/600.0)**(-x)
+      CASE (10)
+         ! Cole & Caraco L&O 1998
+         a = 0.215
+         x = 0.67
+         k_wind = 2.07 + a*windsp**(1.7) * (schmidt/600.0)**(-x)
       END SELECT
 
    ENDIF
