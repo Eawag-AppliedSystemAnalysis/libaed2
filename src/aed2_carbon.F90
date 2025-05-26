@@ -90,7 +90,7 @@ MODULE aed2_carbon
 
       !# Model options
       LOGICAL  :: use_oxy, use_sed_model_dic, use_sed_model_ch4, use_sed_model_ebb
-      LOGICAL  :: simDIC, simCH4, simCH4ebb, kivu_mode
+      LOGICAL  :: simDIC, simCH4, simCH4ebb, kivu_mode, ch4_inflow
       INTEGER  :: alk_mode, co2_model, co2_piston_model, ch4_piston_model
 
      CONTAINS
@@ -158,7 +158,7 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    INTEGER           :: ch4_piston_model = 1
    LOGICAL           :: kivu_mode        = .false.
 
-   LOGICAL           :: simCH4ebb
+   LOGICAL           :: simCH4ebb, ch4_inflow
    AED_REAL          :: Fsed_ch4_ebb     = zero_
    AED_REAL          :: ch4_bub_tau0     = one_
    CHARACTER(len=64) :: Fsed_ebb_variable=''
@@ -184,7 +184,7 @@ SUBROUTINE aed2_define_carbon(data, namlst)
                          simCH4ebb, Fsed_ch4_ebb, Fsed_ebb_variable,        &
                          ch4_bub_aLL,ch4_bub_cLL, ch4_bub_kLL,              &
                          ch4_bub_disf1, ch4_bub_disf2, ch4_bub_disdp,       &
-                         ch4_bub_ws, ch4_bub_tau0, kivu_mode
+                         ch4_bub_ws, ch4_bub_tau0, kivu_mode, ch4_inflow
 
 
 !-------------------------------------------------------------------------------
@@ -195,6 +195,7 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    data%simCH4ebb     = .false.
    data%simDIC        = .false.
    data%simCH4        = .false.
+   data%ch4_inflow    = .false.
 
    !# Read the namelist
    read(namlst,nml=aed2_carbon,iostat=status)
@@ -234,6 +235,7 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    data%ch4_bub_disdp    = ch4_bub_disdp
    data%ch4_bub_ws       = ch4_bub_ws
    data%kivu_mode        = kivu_mode
+   data%ch4_inflow       = ch4_inflow
 
    data%maxMPBProdn      = maxMPBProdn
    data%IkMPB            = IkMPB
@@ -687,7 +689,7 @@ SUBROUTINE aed2_calculate_benthic_carbon(data,column,layer_idx)
 
       IF (data%kivu_mode) THEN
          ! 1/2 of the produced methane comes from geogenic CO2 reduction, added by FB, 2020
-         IF (depth > 250) THEN
+         IF ((.not. data%ch4_inflow) .and. (depth > 250)) THEN
            dic_flux = dic_flux - 1*ch4_flux
            ch4_flux = ch4_flux + 1*ch4_flux
          ENDIF
