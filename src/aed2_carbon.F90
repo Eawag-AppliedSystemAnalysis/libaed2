@@ -90,7 +90,7 @@ MODULE aed2_carbon
 
       !# Model options
       LOGICAL  :: use_oxy, use_sed_model_dic, use_sed_model_ch4, use_sed_model_ebb
-      LOGICAL  :: simDIC, simCH4, simCH4ebb
+      LOGICAL  :: simDIC, simCH4, simCH4ebb, kivu_mode
       INTEGER  :: alk_mode, co2_model, co2_piston_model, ch4_piston_model
 
      CONTAINS
@@ -156,6 +156,7 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    INTEGER           :: alk_mode         = 1
    INTEGER           :: co2_piston_model = 1
    INTEGER           :: ch4_piston_model = 1
+   LOGICAL           :: kivu_mode
 
    LOGICAL           :: simCH4ebb
    AED_REAL          :: Fsed_ch4_ebb     = zero_
@@ -183,7 +184,7 @@ SUBROUTINE aed2_define_carbon(data, namlst)
                          simCH4ebb, Fsed_ch4_ebb, Fsed_ebb_variable,        &
                          ch4_bub_aLL,ch4_bub_cLL, ch4_bub_kLL,              &
                          ch4_bub_disf1, ch4_bub_disf2, ch4_bub_disdp,       &
-                         ch4_bub_ws, ch4_bub_tau0
+                         ch4_bub_ws, ch4_bub_tau0, kivu_mode
 
 
 !-------------------------------------------------------------------------------
@@ -232,6 +233,7 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    data%ch4_bub_disf2    = ch4_bub_disf2
    data%ch4_bub_disdp    = ch4_bub_disdp
    data%ch4_bub_ws       = ch4_bub_ws
+   data%kivu_mode        = kivu_mode
 
    data%maxMPBProdn      = maxMPBProdn
    data%IkMPB            = IkMPB
@@ -445,9 +447,10 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
        IF( data%alk_mode == 1 ) THEN
          ! talk = 520.1 + 51.24*S  ! Atlantic (Millero 1998) from fabm, not suitable for estuaries
          ! talk = 1136.1 + 1.2*S*S + 2.8*S !Chesapeake Bay (George et al., 2013)
-         !talk =  1627.4 + 22.176*S   !regression from Naomi's data on Caboolture
-
-         talk = 11960*S       ! Relationship from Wüest et al., 2009, added by FB, 2020
+         talk =  1627.4 + 22.176*S   !regression from Naomi's data on Caboolture
+         IF (data%kivu_mode) THEN
+            talk = 11960*S       ! Relationship from Wüest et al., 2009, added by FB, 2020
+         ENDIF
 
          a    =  8.24493d-1 - 4.0899d-3*T + 7.6438d-5*T**2 - 8.2467d-7*T**3 + 5.3875d-9*T**4
          b    = -5.72466d-3 + 1.0227d-4*T - 1.6546d-6*T**2
@@ -680,12 +683,13 @@ SUBROUTINE aed2_calculate_benthic_carbon(data,column,layer_idx)
       ch4_flux = Fsed_ch4 * data%Ksed_ch4/(data%Ksed_ch4+oxy) * (data%theta_sed_ch4**(temp-20.0))
       IF( data%simCH4ebb ) ebb_flux = Fsed_ch4_ebb * (data%theta_sed_ch4**(temp-20.0))
 
-      ! 1/2 of the produced methane comes from geogenic CO2 reduction, added by FB, 2020
-      if (depth > 250) then
-        dic_flux = dic_flux - 1*ch4_flux
-        ch4_flux = ch4_flux + 1*ch4_flux
-      end if
-      !write(6,*) depth, ch4_flux*0.012*3600*24*365
+      IF (data%kivu_mode) THEN
+         ! 1/2 of the produced methane comes from geogenic CO2 reduction, added by FB, 2020
+         IF (depth > 250) THEN
+           dic_flux = dic_flux - 1*ch4_flux
+           ch4_flux = ch4_flux + 1*ch4_flux
+         ENDIF
+      ENDIF
 
    ELSE
       ! Sediment flux dependent on temperature only.
