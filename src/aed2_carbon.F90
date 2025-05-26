@@ -448,9 +448,6 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
          ! talk = 520.1 + 51.24*S  ! Atlantic (Millero 1998) from fabm, not suitable for estuaries
          ! talk = 1136.1 + 1.2*S*S + 2.8*S !Chesapeake Bay (George et al., 2013)
          talk =  1627.4 + 22.176*S   !regression from Naomi's data on Caboolture
-         IF (data%kivu_mode) THEN
-            talk = 11960*S       ! Relationship from Wüest et al., 2009, added by FB, 2020
-         ENDIF
 
          a    =  8.24493d-1 - 4.0899d-3*T + 7.6438d-5*T**2 - 8.2467d-7*T**3 + 5.3875d-9*T**4
          b    = -5.72466d-3 + 1.0227d-4*T - 1.6546d-6*T**2
@@ -530,6 +527,11 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
              talk = talk / 1.0D6      ! change unit to mol/kgSW
          TCO2 = dic / (1.0D6*dcf) ! change unit to mol/kgSW
 
+       ENDIF
+
+       IF (data%kivu_mode) THEN
+          talk = 11960*S       ! Relationship from Wüest et al., 2009, added by FB, 2020
+          talk = talk / 1.0D6      ! change unit to mol/kgSW
        ENDIF
 
        CALL CO2SYS(T,S,talk,TCO2,pCO2,CO2,pH) ! Modified by FB, 2020
@@ -800,8 +802,6 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
         ! talk = 520.1 + 51.24*S  ! Atlantic (Millero 1998) from fabm, not suitable for estuaries
         ! talk = 1136.1 + 1.2*S*S + 2.8*S !Chesapeake Bay (George et al., 2013)
         !talk =  1627.4 + 22.176*S   !regression from Naomi's data on Caboolture
-
-        talk = 11960*S          ! From Wüest, 2009, added by FB, 2020
         
         a    =  8.24493d-1 - 4.0899d-3*T + 7.6438d-5*T**2 - 8.2467d-7*T**3 + 5.3875d-9*T**4
         b    = -5.72466d-3 + 1.0227d-4*T - 1.6546d-6*T**2
@@ -881,6 +881,11 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
          talk = talk / 1.0D6      ! change unit to mol/kgSW
          TCO2 = dic / (1.0D6*dcf) ! change unit to mol/kgSW
 
+      ENDIF
+
+      IF (data%kivu_mode) THEN
+         talk = 11960*S       ! Relationship from Wüest et al., 2009, added by FB, 2020
+         talk = talk / 1.0D6      ! change unit to mol/kgSW
       ENDIF
 
       !CALL CO2DYN ( TCO2, talk, T, S, pCO2, pH, HENRY, ca, bc, cb)
