@@ -156,7 +156,7 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    INTEGER           :: alk_mode         = 1
    INTEGER           :: co2_piston_model = 1
    INTEGER           :: ch4_piston_model = 1
-   LOGICAL           :: kivu_mode
+   LOGICAL           :: kivu_mode        = .false.
 
    LOGICAL           :: simCH4ebb
    AED_REAL          :: Fsed_ch4_ebb     = zero_
