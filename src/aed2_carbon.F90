@@ -1010,7 +1010,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
   REAL,    INTENT(IN)   :: TC0, TA0
   REAL,    INTENT(OUT)  :: fCO2xx,CO2,pH00              ! Added co2, by FB, 2020
   ! LOCAL
-  REAL                  :: PRE, K0, KS, kF, fH, KB, KW, KP1, KP2, KP3, KSi = 0., K1, K2, TB, TP, TS, TF, TSi, TC, TA
+  REAL                  :: PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, KSi = 0., K1, K2, TB, TP, TS, TF, TSi, TC, TA
 
   !===========Initialize the conditions =========================!
 
@@ -1025,7 +1025,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   PRE = 0.
 
-  Call Cal_constants(Tem, Sal, PRE, K0, KS, kF, fH, KB, KW, KP1, KP2, KP3, &
+  Call Cal_constants(Tem, Sal, PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, &
                          & KSi,  K1, K2, TB, TP, TS, TF)
 
   Call Cal_pHfromTATC(TA, TC, pH00, K1, K2, TB, KB, KW, KP1, KP2, KP3,&
@@ -1036,11 +1036,11 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   END SUBROUTINE CO2SYS
 
-  SUBROUTINE Cal_constants(TempC, Sal, PRE, K0, KS, kF, fH, KB, KW, KP1, KP2, KP3, &
+  SUBROUTINE Cal_constants(TempC, Sal, PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, &
                          & KSi,  K1, K2, TB, TP, TS, TF)
 
   REAL,   INTENT(in)      :: TempC, Sal, PRE
-  REAL,   INTENT(out)     :: K0, KS, kF, fH, KB, KW, KP1, KP2, KP3, KSi,  K1, K2
+  REAL,   INTENT(out)     :: K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, KSi,  K1, K2
   REAL,   INTENT(inout)   :: TB, TP, TS, TF
 
   ! local
@@ -1082,7 +1082,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   !-------- KF for hydrogen fluoride -----------!
   lnKF = 1590.2/TempK - 12.641 + 1.525*sqrt(IonS)
-  KF   = exp(lnKS) * (1. - 0.001005*Sal)  ! mol/kg-sw
+  KF   = exp(lnKF) * (1. - 0.001005*Sal)  ! mol/kg-sw
   SWStoTOT  = (1 + TS/KS)/(1 + TS/KS + TF/KF)
   FREEtoTOT =  1 + TS/KS
 
