@@ -1126,16 +1126,16 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   !-------- K1 and K2 for carbonic acid --------! By Millero et al (2006) (ionic strength relations) =====> By Modeste 2025
   Term_pK10 = -126.34048 + 6320.813 / TempK + 19.568224 * logTempK
-  Term_A1 = 13.4191*IonS**0.5 + 0.0331*IonS - 5.33e-05*IonS**2
-  Term_B1 = -530.123*IonS**0.5 - 6.103*IonS
-  Term_C1 = -2.06950*IonS**0.5
+  Term_A1 = 93.9053*IonS**0.5 + 1.6549*IonS - 0.130*IonS**2
+  Term_B1 = -3706.9*IonS**0.5 - 303.7*IonS
+  Term_C1 = -14.4858*IonS**0.5
   pK1 =  Term_pK10 + Term_A1 + Term_B1 / TempK + Term_C1 * logTempK
   K1  = 10.**(-pK1)  ! this is on the SWS pH scale in mol/kg-SW
     
   Term_pK20 = -90.18333 + 5143.692 / TempK + 14.613358 * logTempK
-  Term_A2 = 21.0894*IonS**0.5 + 0.1248*IonS - 3.687e-04*IonS**2
-  Term_B2 = -772.483*IonS**0.5 - 20.051*IonS
-  Term_C2 = -3.3336*IonS**0.5
+  Term_A2 = 147.2748*IonS**0.5 + 6.0876*IonS - 0.869*IonS**2
+  Term_B2 = -5400.9*IonS**0.5 - 968.4*IonS
+  Term_C2 = -23.2804*IonS**0.5
   pK2 =  Term_pK20 + Term_A2 + Term_B2 / TempK + Term_C2 * logTempK
   K2  = 10.**(-pK2)
 
