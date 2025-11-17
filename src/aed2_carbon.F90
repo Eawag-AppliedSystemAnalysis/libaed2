@@ -1010,7 +1010,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
   REAL,    INTENT(IN)   :: TC0, TA0
   REAL,    INTENT(OUT)  :: fCO2xx,CO2,pH00              ! Added co2, by FB, 2020
   ! LOCAL
-  REAL                  :: PRE, K0, KS, kF, fH, KB, KW, KP1, KP2, KP3, KSi = 0., K1, K2, TB, TP, TS, TF, TSi, TC, TA
+  REAL                  :: PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, KSi = 0., K1, K2, TB, TP, TS, TF, TSi, TC, TA
 
   !===========Initialize the conditions =========================!
 
@@ -1025,7 +1025,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   PRE = 0.
 
-  Call Cal_constants(Tem, Sal, PRE, K0, KS, kF, fH, KB, KW, KP1, KP2, KP3, &
+  Call Cal_constants(Tem, Sal, PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, &
                          & KSi,  K1, K2, TB, TP, TS, TF)
 
   Call Cal_pHfromTATC(TA, TC, pH00, K1, K2, TB, KB, KW, KP1, KP2, KP3,&
@@ -1036,17 +1036,19 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   END SUBROUTINE CO2SYS
 
-  SUBROUTINE Cal_constants(TempC, Sal, PRE, K0, KS, kF, fH, KB, KW, KP1, KP2, KP3, &
+  SUBROUTINE Cal_constants(TempC, Sal, PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, &
                          & KSi,  K1, K2, TB, TP, TS, TF)
 
   REAL,   INTENT(in)      :: TempC, Sal, PRE
-  REAL,   INTENT(out)     :: K0, KS, kF, fH, KB, KW, KP1, KP2, KP3, KSi,  K1, K2
+  REAL,   INTENT(out)     :: K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, KSi,  K1, K2
   REAL,   INTENT(inout)   :: TB, TP, TS, TF
 
   ! local
   REAL                    :: TempK, RT, logTempK, sqrSal, TempK100, Pbar
   REAL                    :: lnK0, IonS, lnKS, lnKF, lnKBtop, lnKB, lnKW, lnKP1, &
-                           & lnKP2, lnKP3, lnKSi, lnK1, lnK2, pK1, pK2
+                           & lnKP2, lnKP3, lnKSi, lnK1, lnK2, pK1, pK2, Term_pK10, &
+                           & Term_pK20, Term_A1, Term_A2, Term_B1, Term_B2, Term_C1, &
+                           & Term_C2
   REAL                    :: SWStoTOT, FREEtoTOT
   REAL                    ::   deltaV, kappa, lnK1fac, lnK2fac, lnKWfac, lnKFfac,&
                            & lnKSfac, lnKP1fac, lnKP2fac, lnKP3fac, lnKSifac,    &
@@ -1082,7 +1084,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   !-------- KF for hydrogen fluoride -----------!
   lnKF = 1590.2/TempK - 12.641 + 1.525*sqrt(IonS)
-  KF   = exp(lnKS) * (1. - 0.001005*Sal)  ! mol/kg-sw
+  KF   = exp(lnKF) * (1. - 0.001005*Sal)  ! mol/kg-sw
   SWStoTOT  = (1 + TS/KS)/(1 + TS/KS + TF/KF)
   FREEtoTOT =  1 + TS/KS
 
@@ -1116,10 +1118,25 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
   lnKSi = -8904.2/TempK + 117.4 - 19.334*logTempK + (-458.79/TempK + 3.5913)*sqrt(IonS) + &
        & (188.74/TempK - 1.5998)*IonS + (-12.1652/TempK + 0.07871)*(IonS**2)
 
-  !--------K1 and K2 for carbonic acid------------!
-  pK1 = 3670.7/TempK-62.008+9.7944*logTempK-0.0118*Sal+0.000116*(Sal**2)
+  !--------K1 and K2 for carbonic acid------------! By Mehrbach et al. as in Dickson and Millero (1987)
+  !pK1 = 3670.7/TempK-62.008+9.7944*logTempK-0.0118*Sal+0.000116*(Sal**2)  
+  !K1  = 10.**(-pK1)  ! this is on the SWS pH scale in mol/kg-SW
+  !pK2 = 1394.7/TempK + 4.777 - 0.0184*Sal + 0.000118*(Sal**2)
+  !K2  = 10.**(-pK2)
+
+  !-------- K1 and K2 for carbonic acid --------! By Millero et al (2006) (ionic strength relations) =====> By Modeste 2025
+  Term_pK10 = -126.34048 + 6320.813 / TempK + 19.568224 * logTempK
+  Term_A1 = 93.9053*IonS**0.5 + 1.6549*IonS - 0.130*IonS**2
+  Term_B1 = -3706.9*IonS**0.5 - 303.7*IonS
+  Term_C1 = -14.4858*IonS**0.5
+  pK1 =  Term_pK10 + Term_A1 + Term_B1 / TempK + Term_C1 * logTempK
   K1  = 10.**(-pK1)  ! this is on the SWS pH scale in mol/kg-SW
-  pK2 = 1394.7/TempK + 4.777 - 0.0184*Sal + 0.000118*(Sal**2)
+    
+  Term_pK20 = -90.18333 + 5143.692 / TempK + 14.613358 * logTempK
+  Term_A2 = 147.2748*IonS**0.5 + 6.0876*IonS - 0.869*IonS**2
+  Term_B2 = -5400.9*IonS**0.5 - 968.4*IonS
+  Term_C2 = -23.2804*IonS**0.5
+  pK2 =  Term_pK20 + Term_A2 + Term_B2 / TempK + Term_C2 * logTempK
   K2  = 10.**(-pK2)
 
   !============correct constants for pressure=================!
