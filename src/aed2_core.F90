@@ -33,6 +33,7 @@
 #include "aed2.h"
 
 MODULE aed2_core
+   use, intrinsic :: ieee_arithmetic
 
    IMPLICIT NONE
 
@@ -127,7 +128,7 @@ MODULE aed2_core
    AED_REAL,PARAMETER :: secs_per_day = 86400.
    AED_REAL,PARAMETER :: misval_ = -9999.
 
-   AED_REAL,PARAMETER :: nan_ = zero_ / zero_
+   AED_REAL, PARAMETER :: nan_ = ieee_value(0.0_AED_REAL, ieee_quiet_nan)
 
 !===============================================================================
 CONTAINS
