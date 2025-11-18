@@ -1006,11 +1006,11 @@ END FUNCTION aed2_carbon_co2
 
 SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
-  REAL,    INTENT(IN)   :: Tem, Sal
-  REAL,    INTENT(IN)   :: TC0, TA0
-  REAL,    INTENT(OUT)  :: fCO2xx,CO2,pH00              ! Added co2, by FB, 2020
+  AED_REAL,    INTENT(IN)   :: Tem, Sal
+  AED_REAL,    INTENT(IN)   :: TC0, TA0
+  AED_REAL,    INTENT(OUT)  :: fCO2xx,CO2,pH00              ! Added co2, by FB, 2020
   ! LOCAL
-  REAL                  :: PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, KSi = 0., K1, K2, TB, TP, TS, TF, TSi, TC, TA
+  AED_REAL                  :: PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, KSi = 0., K1, K2, TB, TP, TS, TF, TSi, TC, TA
 
   !===========Initialize the conditions =========================!
 
@@ -1039,18 +1039,18 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
   SUBROUTINE Cal_constants(TempC, Sal, PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, &
                          & KSi,  K1, K2, TB, TP, TS, TF)
 
-  REAL,   INTENT(in)      :: TempC, Sal, PRE
-  REAL,   INTENT(out)     :: K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, KSi,  K1, K2
-  REAL,   INTENT(inout)   :: TB, TP, TS, TF
+  AED_REAL,   INTENT(in)      :: TempC, Sal, PRE
+  AED_REAL,   INTENT(out)     :: K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, KSi,  K1, K2
+  AED_REAL,   INTENT(inout)   :: TB, TP, TS, TF
 
   ! local
-  REAL                    :: TempK, RT, logTempK, sqrSal, TempK100, Pbar
-  REAL                    :: lnK0, IonS, lnKS, lnKF, lnKBtop, lnKB, lnKW, lnKP1, &
+  AED_REAL                    :: TempK, RT, logTempK, sqrSal, TempK100, Pbar
+  AED_REAL                    :: lnK0, IonS, lnKS, lnKF, lnKBtop, lnKB, lnKW, lnKP1, &
                            & lnKP2, lnKP3, lnKSi, lnK1, lnK2, pK1, pK2, Term_pK10, &
                            & Term_pK20, Term_A1, Term_A2, Term_B1, Term_B2, Term_C1, &
                            & Term_C2
-  REAL                    :: SWStoTOT, FREEtoTOT
-  REAL                    ::   deltaV, kappa, lnK1fac, lnK2fac, lnKWfac, lnKFfac,&
+  AED_REAL                    :: SWStoTOT, FREEtoTOT
+  AED_REAL                    ::   deltaV, kappa, lnK1fac, lnK2fac, lnKWfac, lnKFfac,&
                            & lnKSfac, lnKP1fac, lnKP2fac, lnKP3fac, lnKSifac,    &
                            & K1fac, K2fac, KWfac, KFfac, KSfac, KP1fac, KP2fac,  &
                            & KP3fac, KSifac, pHfactor, Delta, b, P1atm, FugFac,  &
@@ -1223,13 +1223,13 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
   SUBROUTINE Cal_pHfromTATC(TAx, TCx, pHx, K1F, K2F, TBF, KBF, KWF, KP1F, KP2F, KP3F,&
                            & TPF, TSiF, TSF, KSF, KSiF, TFF, KFF)
 
-  REAL,     INTENT(in) :: TAx, TCx
-  REAL,     INTENT(in) :: K1F, K2F, TBF, KBF, KWF, KP1F, KP2F, KP3F, TPF, TSiF, TSF, KSF, TFF, KFF, KSiF
-  REAL,     INTENT(out):: pHx
+  AED_REAL,     INTENT(in) :: TAx, TCx
+  AED_REAL,     INTENT(in) :: K1F, K2F, TBF, KBF, KWF, KP1F, KP2F, KP3F, TPF, TSiF, TSF, KSF, TFF, KFF, KSiF
+  AED_REAL,     INTENT(out):: pHx
 
   !local
 
-  REAL                 :: H, Denom, CAlk, BAlk, OH, PhosTop, PhosBot, PAlk, SiAlk, &
+  AED_REAL                 :: H, Denom, CAlk, BAlk, OH, PhosTop, PhosBot, PAlk, SiAlk, &
                         & FREEtoTOT, Hfree, HSO4, HF, Residual, Slope, deltapH, pHTol, ln10
 
   INTEGER :: count
@@ -1274,10 +1274,10 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   SUBROUTINE Cal_fCO2fromTCpH(TCx,pHx,fCO2x,CO2,K1,K2,K0)       ! Modified by FB, 2020
 
-  REAL,     INTENT(in) :: TCx, pHx, K1, K2, K0
-  REAL,     INTENT(out):: fCO2x, CO2                            ! Added co2, by FB, 2020
+  AED_REAL,     INTENT(in) :: TCx, pHx, K1, K2, K0
+  AED_REAL,     INTENT(out):: fCO2x, CO2                            ! Added co2, by FB, 2020
 
-  REAL                 :: H  ! local
+  AED_REAL                 :: H  ! local
 
 ! Modified by FB, 2020
   H           = 10.**(-pHx)
