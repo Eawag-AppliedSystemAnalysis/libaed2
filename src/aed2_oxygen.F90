@@ -135,7 +135,7 @@ SUBROUTINE aed2_define_oxygen(data, namlst)
                                                   !%
                                                   !% Optional variable to enforce negative number clipping
 
-   AED_REAL          :: oxy_max           = nan_  !% maxmium dissolved oxygen (DO) concentration
+   AED_REAL          :: oxy_max                   !% maxmium dissolved oxygen (DO) concentration
                                                   !% $$mmol\,m^{-3}$$
                                                   !% float
                                                   !% -
@@ -190,6 +190,7 @@ SUBROUTINE aed2_define_oxygen(data, namlst)
 !-------------------------------------------------------------------------------
 !BEGIN
    print *,"        aed2_oxygen initialization"
+   oxy_max = nan_   ! runtime assignment after init
 
    ! Read the namelist
    read(namlst,nml=aed2_oxygen,iostat=status)

@@ -128,7 +128,7 @@ MODULE aed2_core
    AED_REAL,PARAMETER :: secs_per_day = 86400.
    AED_REAL,PARAMETER :: misval_ = -9999.
 
-   AED_REAL, PARAMETER :: nan_ = ieee_value(0.0_AED_REAL, ieee_quiet_nan)
+   AED_REAL :: nan_
 
 !===============================================================================
 CONTAINS
@@ -145,6 +145,7 @@ INTEGER FUNCTION aed2_init_core(dname,have_cell_vel)
 !
 !LOCAL
 !   AED_REAL :: tmpr = zero_
+   AED_REAL :: dummy
 !
 !-------------------------------------------------------------------------------
 !BEGIN
@@ -153,6 +154,10 @@ INTEGER FUNCTION aed2_init_core(dname,have_cell_vel)
    n_vars = 0;  n_sheet_vars = 0
    n_diags = 0; n_sheet_diags = 0
    IF (PRESENT(have_cell_vel)) host_has_cell_vel = have_cell_vel
+
+   ! Initialize NaN
+   nan_ = ieee_value(real(0.0, kind(dummy)), ieee_quiet_nan)
+
    aed2_init_core = 0
 END FUNCTION aed2_init_core
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

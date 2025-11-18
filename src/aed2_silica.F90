@@ -103,7 +103,7 @@ SUBROUTINE aed2_define_silica(data, namlst)
 !  %% NAMELIST
    AED_REAL          :: rsi_initial=4.5
    AED_REAL          :: rsi_min=zero_
-   AED_REAL          :: rsi_max=nan_
+   AED_REAL          :: rsi_max
    AED_REAL          :: Fsed_rsi = 3.5
    AED_REAL          :: Ksed_rsi = 30.0
    AED_REAL          :: theta_sed_rsi = 1.0
@@ -117,6 +117,7 @@ SUBROUTINE aed2_define_silica(data, namlst)
 !-------------------------------------------------------------------------------
 !BEGIN
    print *,"        aed2_silica initialization"
+   rsi_max = nan_   ! runtime assignment after init
 
    ! Read the namelist
    read(namlst,nml=aed2_silica,iostat=status)

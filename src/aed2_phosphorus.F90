@@ -119,7 +119,7 @@ SUBROUTINE aed2_define_phosphorus(data, namlst)
    ! Initial
    AED_REAL          :: frp_initial   = 4.5
    AED_REAL          :: frp_min       = zero_
-   AED_REAL          :: frp_max       = nan_
+   AED_REAL          :: frp_max
    ! Benthic
    AED_REAL          :: Fsed_frp      = 3.5
    AED_REAL          :: Ksed_frp      = 30.0
@@ -156,6 +156,7 @@ SUBROUTINE aed2_define_phosphorus(data, namlst)
 !------------------------------------------------------------------------------+
 !BEGIN
    print *,"        aed2_phosphorus initialization"
+   frp_max = nan_   ! runtime assignment after init
 
    ! Read the namelist
    read(namlst,nml=aed2_phosphorus,iostat=status)

@@ -105,7 +105,7 @@ SUBROUTINE aed2_define_oxygen(data, namlst)
    AED_REAL :: SOD_oxy = -10.0
    AED_REAL :: oxy_initial=300.
    AED_REAL :: oxy_min=0.
-   AED_REAL :: oxy_max=nan_
+   AED_REAL :: oxy_max
    AED_REAL :: Fsed_oxy = 48.0
    AED_REAL :: Ksed_oxy = 30.0
    AED_REAL :: theta_sed_oxy = 1.0
@@ -121,6 +121,7 @@ SUBROUTINE aed2_define_oxygen(data, namlst)
 !-------------------------------------------------------------------------------
 !BEGIN
    print *,"        ufz_oxygen initialization"
+   oxy_max = nan_   ! runtime assignment after init
 
    ! Read the namelist
    read(namlst,nml=ufz_oxygen,iostat=status)
