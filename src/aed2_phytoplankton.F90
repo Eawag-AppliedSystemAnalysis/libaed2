@@ -337,7 +337,7 @@ SUBROUTINE aed2_phytoplankton_load_params(data, dbase, count, list, settling, re
                               'phytoplankton '//TRIM(data%phytos(i)%p_name),   &
                               pd(list(i))%p_initial,                           &
                               minimum=pd(list(i))%p0,                          &
-                              maximum=1e4_AED_KIND,                          &
+                              maximum=1e4,                          &
                               mobility = data%phytos(i)%w_p)
 
        ! Register rho (density) group as a state variable, if required
@@ -526,8 +526,8 @@ SUBROUTINE aed2_define_phytoplankton(data, namlst)
      data%id_mpb = aed2_define_sheet_variable( 'mpb',                          &
                                                'mmol/m**2',                    &
                                                'microphytobenthos biomass',    &
-                                                1.0e-3_AED_KIND,              &
-                                                minimum=0.001_AED_KIND)
+                                                1.0e-3,              &
+                                                minimum=0.001)
    ENDIF
 
    ! Register link to nutrient pools, if variable names are provided in namelist.

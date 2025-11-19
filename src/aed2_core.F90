@@ -127,7 +127,6 @@ MODULE aed2_core
    AED_REAL,PARAMETER :: zero_ = 0., one_ = 1.
    AED_REAL,PARAMETER :: secs_per_day = 86400.
    AED_REAL,PARAMETER :: misval_ = -9999.
-   integer,parameter,public :: AED_KIND = kind(AED_REAL)
 
    AED_REAL :: nan_
 
@@ -157,7 +156,7 @@ INTEGER FUNCTION aed2_init_core(dname,have_cell_vel)
    IF (PRESENT(have_cell_vel)) host_has_cell_vel = have_cell_vel
 
    ! Initialize NaN
-   nan_ = ieee_value(real(0.0, AED_KIND), ieee_quiet_nan)
+   nan_ = ieee_value(real(0.0, kind(dummy)), ieee_quiet_nan)
 
    aed2_init_core = 0
 END FUNCTION aed2_init_core
