@@ -195,7 +195,7 @@ SUBROUTINE aed2_define_noncohesive(data, namlst)
      ncs_name(3:3) = CHAR(ICHAR('0') + i)
                                              ! divide settling by secs_per_day to convert m/d to m/s
      data%id_ss(i) = aed2_define_variable(TRIM(ncs_name),'g/m**3','noncohesive particle group', &
-                         ss_initial(i),minimum=zero_,maximum=1e4,mobility=(w_ss(i)/secs_per_day))
+                         ss_initial(i),minimum=zero_,maximum=1e4_AED_KIND,mobility=(w_ss(i)/secs_per_day))
      data%id_ss_vvel(i) = aed2_define_diag_variable(TRIM(ncs_name)//'_vvel','m/s','vertical velocity')
 
      IF ( simSedimentMass ) THEN

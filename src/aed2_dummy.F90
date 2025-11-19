@@ -155,7 +155,7 @@ SUBROUTINE aed2_define_dummy(data, namlst)
 
    ! Register state variables
    DO i=1,data%num_v
-      data%id_dummy_v(i) = aed2_define_variable(dm_vars(i), '', '', dm_init(i), dm_min(i), dm_max(i), 0.)
+      data%id_dummy_v(i) = aed2_define_variable(dm_vars(i), '', '', dm_init(i), dm_min(i), dm_max(i), 0._AED_KIND)
    ENDDO
 
    DO i=1,data%num_sv
