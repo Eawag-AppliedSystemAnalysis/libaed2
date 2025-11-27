@@ -74,7 +74,7 @@ MODULE aed2_carbon
       INTEGER  :: id_Fsed_dic, id_Fsed_ch4
       INTEGER  :: id_temp, id_salt
       INTEGER  :: id_wind, id_vel, id_depth
-      INTEGER  :: id_ch4ox, id_pco2
+      INTEGER  :: id_ch4ox, id_pco2, id_pk1, id_pk2, id_talk
       INTEGER  :: id_sed_dic, id_sed_ch4, id_sed_ch4_ebb, id_sed_ch4_ebb_3d
       INTEGER  :: id_atm_co2, id_atm_ch4, id_atm_ch4_ebb, id_ch4_ebb_df
       INTEGER  :: id_par, id_extc, id_dz, id_tau, id_Fsed_ch4_ebb
@@ -82,7 +82,7 @@ MODULE aed2_carbon
       !# Model parameters
       AED_REAL :: Fsed_dic, Ksed_dic, theta_sed_dic
       AED_REAL :: Fsed_ch4, Ksed_ch4, theta_sed_ch4, Fsed_ch4_ebb, ch4_bub_tau0
-      AED_REAL :: Rch4ox, Kch4ox, vTch4ox, atm_co2, atm_ch4, ionic
+      AED_REAL :: Rch4ox, Kch4ox, vTch4ox, atm_co2, atm_ch4, ionic, ku_pk1, ku_pk2,slinear_talk
       AED_REAL :: maxMPBProdn, IkMPB
       AED_REAL :: ch4_bub_aLL, ch4_bub_cLL, ch4_bub_kLL, ch4_bub_ws
       AED_REAL :: ch4_bub_disf1, ch4_bub_disf2, ch4_bub_disdp
@@ -145,6 +145,9 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    AED_REAL          :: Rch4ox           = 0.01
    AED_REAL          :: Kch4ox           = 0.01
    AED_REAL          :: vTch4ox          = 1.05
+   AED_REAL          :: ku_pk1           = 6.0
+   AED_REAL          :: ku_pk2           = 9.0
+   AED_REAL          :: slinear_talk     = 11960.0
    CHARACTER(len=64) :: methane_reactant_variable=''
 !  CHARACTER(len=64) :: carbon_pco2_link = 'CAR_pCO2'  ! added by PHuang
 !                                                      ! removed by CAB because it's not used
@@ -184,7 +187,8 @@ SUBROUTINE aed2_define_carbon(data, namlst)
                          simCH4ebb, Fsed_ch4_ebb, Fsed_ebb_variable,        &
                          ch4_bub_aLL,ch4_bub_cLL, ch4_bub_kLL,              &
                          ch4_bub_disf1, ch4_bub_disf2, ch4_bub_disdp,       &
-                         ch4_bub_ws, ch4_bub_tau0, kivu_mode, ch4_inflow
+                         ch4_bub_ws, ch4_bub_tau0, kivu_mode, ch4_inflow,   &
+                         ku_pk1, ku_pk2, slinear_talk
 
 
 !-------------------------------------------------------------------------------
@@ -223,6 +227,11 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    data%Kch4ox           = Kch4ox
    data%vTch4ox          = vTch4ox
    data%atm_ch4          = atm_ch4
+
+   data%ku_pk1           = ku_pk1
+   data%ku_pk2           = ku_pk2
+   data%slinear_talk     = slinear_talk
+
    data%ch4_piston_model = ch4_piston_model
    data%simCH4ebb        = simCH4ebb
    data%Fsed_ch4_ebb     = Fsed_ch4_ebb
@@ -478,7 +487,7 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
              talk = talk / 1.0D6      ! change unit to mol/kgSW
          TCO2 = dic / (1.0D6*dcf) ! change unit to mol/kgSW
 
-         ELSEIF( data%alk_mode == 3 ) THEN
+       ELSEIF( data%alk_mode == 3 ) THEN
          p00 =      -258.8
          p10 =       34.59
          p01 =      0.9923
@@ -495,7 +504,7 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
              talk = talk / 1.0D6      ! change unit to mol/kgSW
          TCO2 = dic / (1.0D6*dcf) ! change unit to mol/kgSW
 
-         ELSEIF( data%alk_mode == 4 ) THEN
+       ELSEIF( data%alk_mode == 4 ) THEN
          p00 =      -47.51
          p10 =      -17.21
          p01 =        1.32
@@ -512,7 +521,7 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
              talk = talk / 1.0D6      ! change unit to mol/kgSW
          TCO2 = dic / (1.0D6*dcf) ! change unit to mol/kgSW
 
-         ELSEIF( data%alk_mode == 5 ) THEN
+       ELSEIF( data%alk_mode == 5 ) THEN
          p00 =       157.7
          p10 =       4.298
          p01 =      0.6448
@@ -813,7 +822,8 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
 
         ! next, use the CO2 module (same to CDIAC module) to calc pCO2
         talk  = talk / 1.0D6      ! change unit to mol/kgSW
-        TCO2  = dic / (1.0D6*dcf) ! change unit to mol/kgSW
+        TCO2  = dic / (1.002D6*dcf) ! change unit to mol/kgSW
+        !print*, "---dcf:", dcf
 
       ELSEIF( data%alk_mode == 2 ) THEN
         p00  =       1063
@@ -1027,7 +1037,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   Call Cal_constants(Tem, Sal, PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, &
                          & KSi,  K1, K2, TB, TP, TS, TF)
-
+ 
   Call Cal_pHfromTATC(TA, TC, pH00, K1, K2, TB, KB, KW, KP1, KP2, KP3,&
                            & TP, TSi, TS, KS, KSi, TF, KF)
 
@@ -1062,9 +1072,9 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
   sqrSal   = sqrt(Sal)
   Pbar     = PRE/10.
 
-  TB    = (0.000232/10.811)*(Sal/1.80655) ! Total Borate, mol/kg-sw
-  TF    = (0.000067/18.998)*(Sal/1.80655) ! Total Fluoride, mol/kg-sw
-  TS    = (0.14/96.062)*(Sal/1.80655)     ! Total Sulfate, mol/kg-sw
+  TB    = 0 !(0.000232/10.811)*(Sal/1.80655) ! Total Borate, mol/kg-sw
+  TF    = 0 !(0.000067/18.998)*(Sal/1.80655) ! Total Fluoride, mol/kg-sw
+  TS    = 0 !(0.14/96.062)*(Sal/1.80655)     ! Total Sulfate, mol/kg-sw
 
   !---------- CO2 solubility -------------------!
   TempK100 = TempK/100.
@@ -1138,6 +1148,21 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
   Term_C2 = -23.2804*IonS**0.5
   pK2 =  Term_pK20 + Term_A2 + Term_B2 / TempK + Term_C2 * logTempK
   K2  = 10.**(-pK2)
+
+    !-------- K1 and K2 for carbonic acid --------! By Millero et al (2006) (ionic strength relations) =====> By Modeste 2025
+  !Term_pK10 = -126.34048 + 6320.813 / TempK + 19.568224 * logTempK
+  !Term_A1 = 13.4191*Sal**0.5 + 0.0331*Sal - 5.33e-05*Sal**2
+  !Term_B1 = -530.123*Sal**0.5 - 6.103*Sal
+  !Term_C1 = -2.06950*Sal**0.5
+  !pK1 =  Term_pK10 + Term_A1 + Term_B1 / TempK + Term_C1 * logTempK
+  !K1  = 10.**(-pK1)  ! this is on the SWS pH scale in mol/kg-SW
+    
+  !Term_pK20 = -90.18333 + 5143.692 / TempK + 14.613358 * logTempK
+  !Term_A2 = 21.0894*Sal**0.5 + 0.1248*Sal - 3.687e-04*Sal**2
+  !Term_B2 = -772.483*Sal**0.5 - 20.051*Sal
+  !Term_C2 = -3.3336*Sal**0.5
+  !pK2 =  Term_pK20 + Term_A2 + Term_B2 / TempK + Term_C2 * logTempK
+  !K2  = 10.**(-pK2)
 
   !============correct constants for pressure=================!
   !------correct K1, k2, kB for pressure----------!
