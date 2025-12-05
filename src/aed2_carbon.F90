@@ -74,7 +74,7 @@ MODULE aed2_carbon
       INTEGER  :: id_Fsed_dic, id_Fsed_ch4
       INTEGER  :: id_temp, id_salt
       INTEGER  :: id_wind, id_vel, id_depth
-      INTEGER  :: id_ch4ox, id_pco2, id_pk1, id_pk2, id_talk
+      INTEGER  :: id_ch4ox, id_pco2, id_pk1, id_pk2!, id_talk
       INTEGER  :: id_sed_dic, id_sed_ch4, id_sed_ch4_ebb, id_sed_ch4_ebb_3d
       INTEGER  :: id_atm_co2, id_atm_ch4, id_atm_ch4_ebb, id_ch4_ebb_df
       INTEGER  :: id_par, id_extc, id_dz, id_tau, id_Fsed_ch4_ebb
@@ -82,7 +82,7 @@ MODULE aed2_carbon
       !# Model parameters
       AED_REAL :: Fsed_dic, Ksed_dic, theta_sed_dic
       AED_REAL :: Fsed_ch4, Ksed_ch4, theta_sed_ch4, Fsed_ch4_ebb, ch4_bub_tau0
-      AED_REAL :: Rch4ox, Kch4ox, vTch4ox, atm_co2, atm_ch4, ionic, ku_pk1, ku_pk2,slinear_talk
+      AED_REAL :: Rch4ox, Kch4ox, vTch4ox, atm_co2, atm_ch4, ionic!, ku_pk1, ku_pk2,slinear_talk
       AED_REAL :: maxMPBProdn, IkMPB
       AED_REAL :: ch4_bub_aLL, ch4_bub_cLL, ch4_bub_kLL, ch4_bub_ws
       AED_REAL :: ch4_bub_disf1, ch4_bub_disf2, ch4_bub_disdp
@@ -145,9 +145,9 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    AED_REAL          :: Rch4ox           = 0.01
    AED_REAL          :: Kch4ox           = 0.01
    AED_REAL          :: vTch4ox          = 1.05
-   AED_REAL          :: ku_pk1           = 6.0
-   AED_REAL          :: ku_pk2           = 9.0
-   AED_REAL          :: slinear_talk     = 11960.0
+   !AED_REAL          :: ku_pk1           = 6.0
+   !AED_REAL          :: ku_pk2           = 9.0
+   !AED_REAL          :: slinear_talk     = 11960.0
    CHARACTER(len=64) :: methane_reactant_variable=''
 !  CHARACTER(len=64) :: carbon_pco2_link = 'CAR_pCO2'  ! added by PHuang
 !                                                      ! removed by CAB because it's not used
@@ -187,8 +187,8 @@ SUBROUTINE aed2_define_carbon(data, namlst)
                          simCH4ebb, Fsed_ch4_ebb, Fsed_ebb_variable,        &
                          ch4_bub_aLL,ch4_bub_cLL, ch4_bub_kLL,              &
                          ch4_bub_disf1, ch4_bub_disf2, ch4_bub_disdp,       &
-                         ch4_bub_ws, ch4_bub_tau0, kivu_mode, ch4_inflow,   &
-                         ku_pk1, ku_pk2, slinear_talk
+                         ch4_bub_ws, ch4_bub_tau0, kivu_mode, ch4_inflow!,   &
+                         !ku_pk1, ku_pk2, slinear_talk
 
 
 !-------------------------------------------------------------------------------
@@ -228,9 +228,9 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    data%vTch4ox          = vTch4ox
    data%atm_ch4          = atm_ch4
 
-   data%ku_pk1           = ku_pk1
-   data%ku_pk2           = ku_pk2
-   data%slinear_talk     = slinear_talk
+   !data%ku_pk1           = ku_pk1
+   !data%ku_pk2           = ku_pk2
+   !data%slinear_talk     = slinear_talk
 
    data%ch4_piston_model = ch4_piston_model
    data%simCH4ebb        = simCH4ebb
@@ -290,6 +290,9 @@ SUBROUTINE aed2_define_carbon(data, namlst)
    data%id_pco2 = aed2_define_diag_variable('pCO2','atm', 'pCO2')
 
    data%id_co2 = aed2_define_diag_variable('CO2', 'mmol/m**3', 'CO2') ! Added by FB, 2020
+   data%id_pk1 = aed2_define_diag_variable('pK1', 'ku', 'pK1')
+   data%id_pk2 = aed2_define_diag_variable('pK2', 'ku', 'pK2')
+   data%id_talk = aed2_define_diag_variable('talk', 'mmol/m**3', 'talk')
    
    data%id_sed_dic = aed2_define_sheet_diag_variable('sed_dic','mmol/m**2/d', &
                             'CO2 exchange across sed/water interface')
@@ -401,7 +404,7 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
 
    ! Temporary variables
 
-   AED_REAL :: pCO2 = 0., co2 = 0.,FCO2,FCH4,henry      ! co2 added by FB, 2020
+   AED_REAL :: pCO2 = 0., co2 = 0., pK1=0., pK2=0., FCO2,FCH4,henry      ! co2 added by FB, 2020
    AED_REAL :: Ko,kCH4,KCO2, CH4solub
    AED_REAL :: Tabs,windHt,atm
    AED_REAL :: A1,A2,A3,A4,B1,B2,B3,logC
@@ -545,14 +548,17 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
           talk = talk / 1.0D6      ! change unit to mol/kgSW
        ENDIF
 
-       CALL CO2SYS(T,S,talk,TCO2,pCO2,CO2,pH) ! Modified by FB, 2020
+       CALL CO2SYS(T,S,talk,TCO2,pCO2,CO2,pH,pK1,pK2) ! Modified by FB, 2020
 
        ! Adjust outputs back to units used in the parent model code (e.g. mmol/m3) if appropriate
        ! note the output pCO2 is in unit of ATM
        ! pCO2 = pCO2*1.0D6   ! partial pressure of co2 in water
        ! _STATE_VAR_(data%id_talk) = talk*(1.0D6)           ! total alkalinity (umol/kg)
        _DIAG_VAR_(data%id_pco2) = pCO2
-       _DIAG_VAR_(data%id_co2) = CO2      ! Added by FB, 2020
+       _DIAG_VAR_(data%id_co2) = CO2  ! Added by FB, 2020
+       _DIAG_VAR_(data%id_talk) = talk * 1.0D6
+       _DIAG_VAR_(data%id_pK1) = pK1
+       _DIAG_VAR_(data%id_pK2) = pK2      
 
      ELSEIF ( data%co2_model == 2 ) THEN
        !# Use the Butler CO2 code for computing pCO2 & pH
@@ -698,7 +704,7 @@ SUBROUTINE aed2_calculate_benthic_carbon(data,column,layer_idx)
 
       IF (data%kivu_mode) THEN
          ! 1/2 of the produced methane comes from geogenic CO2 reduction, added by FB, 2020
-         IF ((.not. data%ch4_inflow) .and. (depth > 250)) THEN
+         IF ((.not. data%ch4_inflow) .and. (depth < 250)) THEN   !positive depths maximum at the surface 
            dic_flux = dic_flux - 1*ch4_flux
            ch4_flux = ch4_flux + 1*ch4_flux
          ENDIF
@@ -783,7 +789,7 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
 !
 !LOCALS
    ! State
-   AED_REAL :: dic, pH, CO2, pCO2, temp, salt ! Added co2, FB, 2020
+   AED_REAL :: dic, pH=7., CO2, pCO2, temp, salt, pK1, pK2 ! Added co2, FB, 2020
    AED_REAL :: S,T,a,b,c,dcf,talk = 0.,TCO2 = 0.,ca,bc,cb,HENRY
    AED_REAL :: p00,p10,p01,p20,p11,p02
 
@@ -902,7 +908,7 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
 
       !CALL CO2DYN ( TCO2, talk, T, S, pCO2, pH, HENRY, ca, bc, cb)
 
-      CALL CO2SYS(T,S,talk,TCO2,pCO2,CO2,pH)    ! Modified by FB, 2020
+      CALL CO2SYS(T,S,talk,TCO2,pCO2,CO2,pH, pK1, pK2)    ! Modified by FB, 2020
 
     ENDIF
 
@@ -910,6 +916,9 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
     _DIAG_VAR_(data%id_pco2) = pCO2
     _DIAG_VAR_(data%id_co2) = CO2               ! Added by FB, 2020
     _STATE_VAR_(data%id_pH)  =  pH
+    _DIAG_VAR_(data%id_talk) = talk * 1.0D6
+    _DIAG_VAR_(data%id_pK1) = pK1 
+    _DIAG_VAR_(data%id_pK2) = pK2  
 
 END SUBROUTINE aed2_equilibrate_carbon
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1014,11 +1023,11 @@ PURE AED_REAL FUNCTION aed2_carbon_co2(ionic, temp, dic, pH)
 END FUNCTION aed2_carbon_co2
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
+SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00,pK1,pK2)      ! Modified by FB, 2020
 
   REAL,    INTENT(IN)   :: Tem, Sal
   REAL,    INTENT(IN)   :: TC0, TA0
-  REAL,    INTENT(OUT)  :: fCO2xx,CO2,pH00              ! Added co2, by FB, 2020
+  REAL,    INTENT(OUT)  :: pK1, pK2, fCO2xx,CO2,pH00              ! Added co2, by FB, 2020
   ! LOCAL
   REAL                  :: PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, KSi = 0., K1, K2, TB, TP, TS, TF, TSi, TC, TA
 
@@ -1037,9 +1046,20 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   Call Cal_constants(Tem, Sal, PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, &
                          & KSi,  K1, K2, TB, TP, TS, TF)
+
+  pK1 = -log10(K1)
+  pK2 = -log10(K2)
+
+  !call Cal_pHfromTATC_Carbonate_Improved(TA, TC, TB, K1, K2, KB, KW, pH00) !(TA, TC, pH00, K1, K2, KW)
+  !call Cal_pHfromTATC_Carbonate(TA, TC, pH00, K1, K2, KW) !(TA, TC, K1, K2, KW, pH00)
+  !fCO2 = (TC - TA) / K0
+  !fCO2x     = CO2/K0
+  !call Cal_pHfromTAfCO2(TA, fCO2, pH00, K0, K1, K2, KW, KB, TB, KP1, KP2, KP3, TP, TSi, KSi, TS, KS, TF, KF)
+  !call Cal_pHfromTATC_1(TAx, TCx, pHx, K1F, K2F, TBF, KBF, KWF, KP1F, KP2F, KP3F,&
+                           !& TPF, TSiF, TSF, KSF, KSiF, TFF, KFF)
  
-  Call Cal_pHfromTATC(TA, TC, pH00, K1, K2, TB, KB, KW, KP1, KP2, KP3,&
-                           & TP, TSi, TS, KS, KSi, TF, KF)
+  Call Cal_pHfromTATC_1(TA, TC, pH00, K1, K2, TB, KB, KW, KP1, KP2, KP3,&
+                         & TP, TSi, TS, KS, KSi, TF, KF)
 
   Call Cal_fCO2fromTCpH(TC,pH00,fCO2xx,CO2,K1,K2,K0)          ! Modified by FB, 2020
 
@@ -1058,7 +1078,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
   REAL                    :: lnK0, IonS, lnKS, lnKF, lnKBtop, lnKB, lnKW, lnKP1, &
                            & lnKP2, lnKP3, lnKSi, lnK1, lnK2, pK1, pK2, Term_pK10, &
                            & Term_pK20, Term_A1, Term_A2, Term_B1, Term_B2, Term_C1, &
-                           & Term_C2
+                           & Term_C2, TermFT_1, TermFT_2
   REAL                    :: SWStoTOT, FREEtoTOT
   REAL                    ::   deltaV, kappa, lnK1fac, lnK2fac, lnKWfac, lnKFfac,&
                            & lnKSfac, lnKP1fac, lnKP2fac, lnKP3fac, lnKSifac,    &
@@ -1072,7 +1092,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
   sqrSal   = sqrt(Sal)
   Pbar     = PRE/10.
 
-  TB    = 0 !(0.000232/10.811)*(Sal/1.80655) ! Total Borate, mol/kg-sw
+  TB    = (0.000232/10.811)*(Sal/1.80655) ! Total Borate, mol/kg-sw
   TF    = 0 !(0.000067/18.998)*(Sal/1.80655) ! Total Fluoride, mol/kg-sw
   TS    = 0 !(0.14/96.062)*(Sal/1.80655)     ! Total Sulfate, mol/kg-sw
 
@@ -1089,7 +1109,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
   lnKS = -4276.1/TempK + 141.328 - 23.093*logTempK + &
      & (-13856./TempK + 324.57 - 47.986*logTempK)*sqrt(IonS) + &
      & (35474./TempK - 771.54 + 114.723*logTempK)*IonS + &
-     & (-2698./TempK)*sqrt(IonS)*IonS + (1776./TempK)*(IonS**2)
+     & (-2698./TempK)*sqrt(IonS)*IonS + (1776./TempK)*(IonS**2) !this is on the free pH scale in mol/kg-H2O
   KS   = exp(lnKS) * (1. - 0.001005*Sal)  ! mol/kg-sw
 
   !-------- KF for hydrogen fluoride -----------!
@@ -1111,9 +1131,9 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
   !--------- KW for water -----------------------!
   lnKW = 148.9802 - 13847.26/TempK - 23.6521*logTempK + (-5.977 + &
       & 118.67/TempK + 1.0495*logTempK)*sqrSal - 0.01615*Sal
-  KW   = exp(lnKW)
+  KW   = exp(lnKW) !this is on the SWS pH scale in (mol/kg-SW)^2
 
-  !------KP1, KP2, KP3 for phosphoric acid-------!
+  !------KP1, KP2, KP3 for phosphoric acid-------!KP1, KP2, KP3 are on the SWS pH scale in mol/kg-SW
   lnKP1 = -4576.752/TempK + 115.54 - 18.453*logTempK + (-106.736/TempK +  &
        & 0.69171)*sqrSal + (-0.65643/TempK - 0.01844)*Sal
   KP1   = exp(lnKP1)
@@ -1135,19 +1155,46 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
   !K2  = 10.**(-pK2)
 
   !-------- K1 and K2 for carbonic acid --------! By Millero et al (2006) (ionic strength relations) =====> By Modeste 2025
-  Term_pK10 = -126.34048 + 6320.813 / TempK + 19.568224 * logTempK
-  Term_A1 = 93.9053*IonS**0.5 + 1.6549*IonS - 0.130*IonS**2
-  Term_B1 = -3706.9*IonS**0.5 - 303.7*IonS
-  Term_C1 = -14.4858*IonS**0.5
-  pK1 =  Term_pK10 + Term_A1 + Term_B1 / TempK + Term_C1 * logTempK
-  K1  = 10.**(-pK1)  ! this is on the SWS pH scale in mol/kg-SW
-    
-  Term_pK20 = -90.18333 + 5143.692 / TempK + 14.613358 * logTempK
-  Term_A2 = 147.2748*IonS**0.5 + 6.0876*IonS - 0.869*IonS**2
-  Term_B2 = -5400.9*IonS**0.5 - 968.4*IonS
-  Term_C2 = -23.2804*IonS**0.5
-  pK2 =  Term_pK20 + Term_A2 + Term_B2 / TempK + Term_C2 * logTempK
-  K2  = 10.**(-pK2)
+   !   Term_pK10 = -126.34048 + 6320.813 / TempK + 19.568224 * logTempK
+   !   Term_A1 = 93.9053*IonS**0.5 + 1.6549*IonS - 0.130*IonS**2
+   !   Term_B1 = -3706.9*IonS**0.5 - 303.7*IonS
+   !   Term_C1 = -14.4858*IonS**0.5
+   !   pK1 =  Term_pK10 + Term_A1 + Term_B1 / TempK + Term_C1 * logTempK
+   !   K1  = 10.**(-pK1)  ! this is on the SWS pH scale in mol/kg-SW
+      
+   !   Term_pK20 = -90.18333 + 5143.692 / TempK + 14.613358 * logTempK
+   !   Term_A2 = 147.2748*IonS**0.5 + 6.0876*IonS - 0.869*IonS**2
+   !   Term_B2 = -5400.9*IonS**0.5 - 968.4*IonS
+   !   Term_C2 = -23.2804*IonS**0.5
+   !   pK2 =  Term_pK20 + Term_A2 + Term_B2 / TempK + Term_C2 * logTempK
+   !   K2  = 10.**(-pK2)
+
+  ! ----- K1 and K2 for carbonic acid -----  Millero et al. (2007), ionic strength by Modeste 2025
+
+   Term_pK10 = -114.3106 + 5773.67/TempK + 17.779524 * logTempK
+   Term_A1   = 35.2911*sqrt(IonS) + 0.8491*IonS - 0.32*IonS**1.5 + 0.055*IonS**2
+   Term_B1   = -1583.09*sqrt(IonS)
+   Term_C1   = -5.4366*sqrt(IonS)
+   pK1       = Term_pK10 + Term_A1 + Term_B1/TempK + Term_C1*logTempK
+   K1        = 10.0**(-pK1)
+
+
+   Term_pK20 = -83.2997 + 4821.38/TempK + 13.5962 * logTempK
+   Term_A2   = 38.2746*sqrt(IonS) + 1.6057*IonS - 0.647*IonS**1.5 + 0.113*IonS**2
+   Term_B2   = -1738.16*sqrt(IonS)
+   Term_C2   = -6.0346*sqrt(IonS)
+   pK2       = Term_pK20 + Term_A2 + Term_B2/TempK + Term_C2*logTempK
+   K2        = 10.0**(-pK2)
+
+  ! ----- K1 and K2 for carbonic acid -----  Cai & Wang 1998, by Modeste 2025
+   !   TermFT_1 = 200.1 / TempK + 0.322
+   !   pK1 = 3404.71 / TempK + 0.032786 * TempK - 14.8435 - 0.071692 * TermFT_1 * sqrSal + 0.0021487 * Sal
+   !   K1        = (10.0**(-pK1) / fH) ! was on the NBS scale, with fH convert to SWS scale (uncertain at low Sal due to junction potential
+
+   !   TermFT_2 = -129.24 / TempK + 1.4381
+   !   pK2 = 2902.39 / TempK + 0.02379 * TempK - 6.498 - 0.3191 * TermFT_2 * sqrSal + 0.0198 * Sal
+   !   K2        = (10.0**(-pK2) / fH) ! was on the NBS scale, with fH convert to SWS scale
+
 
     !-------- K1 and K2 for carbonic acid --------! By Millero et al (2006) (ionic strength relations) =====> By Modeste 2025
   !Term_pK10 = -126.34048 + 6320.813 / TempK + 19.568224 * logTempK
@@ -1245,6 +1292,178 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   END SUBROUTINE Cal_constants
 
+SUBROUTINE Cal_pHfromTATC_Carbonate_Improved(TAx, TCx, TBF, K1F, K2F, KBF, KWF, pHx)
+  IMPLICIT NONE
+  ! Inputs
+  REAL(kind=8), INTENT(IN) :: TAx, TCx, TBF
+  REAL(kind=8), INTENT(IN) :: K1F, K2F, KBF, KWF
+  ! Output
+  REAL(kind=8), INTENT(OUT):: pHx
+
+  ! Local variables
+  REAL(kind=8) :: H, Denom, CAlk, BAlk, OH, Residual, Slope, deltapH
+  REAL(kind=8) :: pHTol, ln10
+  INTEGER :: count, max_count
+  REAL(kind=8) :: pH_low, pH_high
+  LOGICAL :: success
+
+  ! Constants
+  ln10       = log(10.0d0)
+  pHTol      = 1.0d-8
+  max_count  = 100
+  success    = .FALSE.
+
+  ! ============================================================
+  ! Step 1: Improved initial guess
+  ! ============================================================
+   IF (TCx > TAx) THEN
+      ! CO2-rich case (acidic-siding)
+      ! pH ≈ pK1 + log10( (TC-TA) / TA )
+      pHx = log10(K1F) + log10( (TCx - TAx) / TAx )
+   ELSE
+      ! Alkalinity-dominated, high pH case
+      ! pH ≈ pK2 + log10( (TA - TC) / TC )
+      pHx = log10(K2F) + log10( (TAx - TCx) / TCx )
+      !call pH0_from_TC(TAx, TCx, TBF, K1F, K2F, KBF, pHx)
+   END IF
+
+  call pH0_from_TC(TAx, TCx, TBF, K1F, K2F, KBF, pHx)
+
+  ! Bound initial guess within physical pH range
+  !pHx = MAX(4.0d0, MIN(10.5d0, pHx))
+
+  ! ============================================================
+  ! Step 2: Newton-Raphson
+  ! ============================================================
+  pH_low  = 0.0d0
+  pH_high = 14.0d0
+
+  count = 0
+  deltapH = pHTol + 1.0d0
+
+  DO WHILE (ABS(deltapH) > pHTol .AND. count < max_count)
+
+    H     = 10.0d0**(-pHx)
+    Denom = H*H + K1F*H + K1F*K2F
+    CAlk  = TCx*K1F*(H + 2.0d0*K2F) / Denom
+    BAlk      = TBF*KBF/(KBF + H)
+    OH    = KWF/H
+
+    Residual = TAx - CAlk - BAlk - OH + H
+
+    Slope = ln10 * ( TCx*K1F*H*(H*H + K1F*K2F + 4.0d0*H*K2F) / Denom**2  &
+                     + BAlk*H/(KBF + H) + OH + H )
+
+    deltapH = Residual / Slope
+
+    ! prevent divergence
+    IF (ABS(deltapH) > 1.0d0) deltapH = SIGN(1.0d0, deltapH)
+
+    pHx = pHx + deltapH
+
+    pHx = MAX(pH_low, MIN(pH_high, pHx))
+    count = count + 1
+
+  END DO
+
+END SUBROUTINE Cal_pHfromTATC_Carbonate_Improved
+
+
+SUBROUTINE Cal_pHfromTATC_Carbonate(TAx, TCx, K1F, K2F, KWF, pHx)
+  IMPLICIT NONE
+  ! Inputs
+  REAL(kind=8), INTENT(IN) :: TAx, TCx
+  REAL(kind=8), INTENT(IN) :: K1F, K2F, KWF
+  ! Output
+  REAL(kind=8), INTENT(OUT):: pHx
+
+  ! Local variables
+   REAL(kind=8) :: H, Denom, CAlk, OH, Residual, Slope, deltapH
+   REAL(kind=8) :: pHTol, ln10
+   INTEGER :: count, max_count
+   REAL(kind=8) :: pH_low, pH_high, Residual_low, Residual_high
+   LOGICAL :: success
+
+  ! Constants
+   pHx     = 8.0d0        ! dummy argument, assign value but do not redeclare
+   deltapH = 1.0d0
+   ln10    = log(10.0d0)
+   pHTol   = 1.0d-8
+   success = .FALSE.
+   max_count = 100
+
+  ! ----------------------------------------
+  ! Step 1: initial guess using simple carbonate estimate
+  ! crude estimate: if TAx < TCx, pH ~ pK1 + log10((CT-TA)/TA)
+  IF (TCx > TAx) THEN
+     pHx = log10((TCx - TAx)/TAx) - log10(1.0d0) + log10(K1F)  ! equivalent to pK1 + log(...)
+  ELSE
+     pHx = 7.5d0  ! fallback guess
+  END IF
+
+  ! Bound initial guess
+  pHx = MAX(0.0d0, MIN(14.0d0, pHx))
+
+  ! ----------------------------------------
+  ! Step 2: bracket for bisection fallback
+  pH_low  = 0.0d0
+  pH_high = 14.0d0
+
+  ! ----------------------------------------
+  ! Step 3: Newton-Raphson iteration
+  count = 0
+  deltapH = pHTol + 1.0d0
+  DO WHILE (ABS(deltapH) > pHTol .AND. count < max_count)
+
+    H     = 10.0d0**(-pHx)
+    Denom = H*H + K1F*H + K1F*K2F
+    CAlk  = TCx*K1F*(H + 2.0d0*K2F)/Denom
+    OH    = KWF/H
+    Residual = TAx - CAlk - OH + H
+    Slope    = ln10*(TCx*K1F*H*(H*H + K1F*K2F + 4.0d0*H*K2F)/Denom**2 + OH + H)
+
+    ! Newton step
+    deltapH = Residual / Slope
+
+    ! Limit jump to prevent overshoot
+    IF (ABS(deltapH) > 1.0d0) deltapH = SIGN(1.0d0,deltapH)
+
+    ! Update pH and count
+    pHx = pHx + deltapH
+    pHx = MAX(pH_low, MIN(pH_high, pHx))  ! keep pH physical
+    count = count + 1
+
+  END DO
+
+  ! ----------------------------------------
+  ! Step 4: fallback bisection if not converged
+   !   IF (ABS(deltapH) > pHTol) THEN
+   !      ! simple bisection between 0 and 14
+   !      Residual_low  = TAx - TCx*K1F*(10.0d0**(-pH_low) + 2.0d0*K2F)/ &
+   !                      ( (10.0d0**(-pH_low))**2 + K1F*10.0d0**(-pH_low) + K1F*K2F ) - KWF/10.0d0**(-pH_low) + 10.0d0**(-pH_low)
+   !      Residual_high = TAx - TCx*K1F*(10.0d0**(-pH_high) + 2.0d0*K2F)/ &
+   !                      ( (10.0d0**(-pH_high))**2 + K1F*10.0d0**(-pH_high) + K1F*K2F ) - KWF/10.0d0**(-pH_high) + 10.0d0**(-pH_high)
+   !      ! loop until tolerance reached
+   !      DO WHILE (ABS(pH_high - pH_low) > pHTol)
+   !         pHx = 0.5d0*(pH_low + pH_high)
+   !         H    = 10.0d0**(-pHx)
+   !         Denom= H*H + K1F*H + K1F*K2F
+   !         CAlk = TCx*K1F*(H + 2.0d0*K2F)/Denom
+   !         OH   = KWF/H
+   !         Residual = TAx - CAlk - OH + H
+   !         IF (Residual*Residual_low < 0.0d0) THEN
+   !            pH_high = pHx
+   !            Residual_high = Residual
+   !         ELSE
+   !            pH_low  = pHx
+   !            Residual_low = Residual
+   !         END IF
+   !      END DO
+   !   END IF
+
+END SUBROUTINE Cal_pHfromTATC_Carbonate
+
+
   SUBROUTINE Cal_pHfromTATC(TAx, TCx, pHx, K1F, K2F, TBF, KBF, KWF, KP1F, KP2F, KP3F,&
                            & TPF, TSiF, TSF, KSF, KSiF, TFF, KFF)
 
@@ -1256,9 +1475,175 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
 
   REAL                 :: H, Denom, CAlk, BAlk, OH, PhosTop, PhosBot, PAlk, SiAlk, &
                         & FREEtoTOT, Hfree, HSO4, HF, Residual, Slope, deltapH, pHTol, ln10
+  REAL                 :: pH0, dCAlk_dH, dBAlk_dH, dOH_dH, dFdH
 
   INTEGER :: count
   INTEGER :: max_count
+
+  call pH0_from_TC(TAx, TCx, TBF, K1F, K2F, KBF, pH0)
+
+  pHx      = pH0        !This is the first guess
+  pHTol    = 0.0001    !tolerance for iterations end
+  ln10     = log(10.)
+  deltapH  = pHTol + 1
+
+  count = 0
+  max_count = 100
+
+   DO WHILE (abs(deltapH) > pHTol .AND. count < max_count)
+      ! total-scale proton
+      H     = 10.0d0**(-pHx)
+
+      ! carbonate terms
+      Denom = H*H + K1F*H + K1F*K2F
+      CAlk  = TCx * K1F * (H + 2.0d0*K2F) / Denom
+
+      ! borate
+      BAlk  = TBF * KBF / (KBF + H)
+
+      ! hydroxide
+      OH    = KWF / H
+
+      ! simplified residual (use H = total-scale proton)
+      Residual = TAx - CAlk - BAlk - OH + H
+
+      ! --- derivatives (stand-alone) ---
+      ! dCAlk/dH  (note: negative)
+      dCAlk_dH = - TCx * K1F * ( H*H + K1F*K2F + 4.0d0*H*K2F ) / ( Denom*Denom )
+
+      ! dBAlk/dH (negative)
+      dBAlk_dH = - TBF * KBF / ( (KBF + H)**2 )
+
+      ! dOH/dH (negative)
+      dOH_dH   = - KWF / ( H*H )
+
+      ! total dF/dH
+      dFdH = - dCAlk_dH - dBAlk_dH - dOH_dH + 1.0d0
+
+      ! slope on pH used in Newton step (positive)
+      Slope = ln10 * H * dFdH
+
+      ! Newton update
+      deltapH = Residual / Slope
+
+      ! step limiting (avoid huge jumps)
+      IF (ABS(deltapH) > 1.0d0) deltapH = SIGN(1.0d0,deltapH)
+
+      pHx = pHx + deltapH
+      count = count + 1
+   END DO
+
+
+END SUBROUTINE Cal_pHfromTATC
+
+SUBROUTINE Cal_pHfromTAfCO2(TAx, fCO2x, pHx, K0F, K1F, K2F, KWF, KBF, TBF, &
+                              KP1F, KP2F, KP3F, TPF, TSiF, KSiF, TSF, KSF,   &
+                              TFF, KFF)
+  REAL,     INTENT(in)  :: TAx, fCO2x
+  REAL,     INTENT(in)  :: K0F, K1F, K2F, KWF, KBF, TBF
+  REAL,     INTENT(in)  :: KP1F, KP2F, KP3F, TPF
+  REAL,     INTENT(in)  :: TSiF, KSiF, TSF, KSF, TFF, KFF
+  REAL,     INTENT(out) :: pHx
+
+  ! --- Local variables (carry over from original) ---
+  REAL :: H, Denom, CAlk, BAlk, OH, PhosTop, PhosBot, PAlk, SiAlk
+  REAL :: FREEtoTOT, Hfree, HSO4, HF
+  REAL :: Residual, Slope, deltapH, pHTol, ln10
+
+  ! --- NEW variables needed for TA + fCO2 formulation ---
+  REAL :: HCO3, CO3              ! NEW: bicarbonate and carbonate from fCO2
+
+  INTEGER :: count, max_count
+
+  ! ---------------------------------------------------------------------
+  ! Initialisation
+  ! ---------------------------------------------------------------------
+  pHx      = 8.0        ! first guess (same as original)
+  pHTol    = 0.0001     ! tolerance
+  ln10     = log(10.0)
+  deltapH  = pHTol + 1.0
+
+  count     = 0
+  max_count = 100
+
+  ! ---------------------------------------------------------------------
+  ! Newton iteration loop
+  ! ---------------------------------------------------------------------
+  DO WHILE (abs(deltapH) > pHTol .AND. count < max_count)
+
+     H = 10.0**(-pHx)
+
+     ! --- Carbonate alkalinity from TA + fCO2 ---
+     !     CO2 = K0 * fCO2
+     !     HCO3 = K1 * CO2 / H
+     !     CO3  = K1*K2 * CO2 / H^2
+     ! -------------------------------------------------
+     HCO3 = K0F * K1F * fCO2x / H        ! NEW
+     CO3  = K0F * K1F * K2F * fCO2x / (H*H)   ! NEW
+     CAlk = HCO3 + 2.0*CO3
+
+     ! --- Borate alkalinity ---
+     BAlk = TBF * KBF / (KBF + H)
+
+     ! --- Water dissociation term ---
+     OH = KWF / H
+
+     ! --- Phosphate alkalinity ---
+     PhosTop =   KP1F*KP2F*H  + 2.0*KP1F*KP2F*KP3F - H*H*H
+     PhosBot = H*H*H + KP1F*H*H + KP1F*KP2F*H + KP1F*KP2F*KP3F
+     PAlk    = TPF * PhosTop / PhosBot
+
+     ! --- Silicate alkalinity ---
+     SiAlk = TSiF * KSiF / (KSiF + H)
+
+     ! --- pH scale FREE → TOTAL conversion ---
+     FREEtoTOT = (1.0 + TSF/KSF)
+     Hfree     = H / FREEtoTOT
+
+     HSO4 = TSF / (1.0 + KSF/Hfree)
+     HF   = TFF / (1.0 + KFF/Hfree)
+
+     ! --- Residual TA ---
+     Residual = TAx - CAlk - BAlk - OH - PAlk - SiAlk + Hfree + HSO4 + HF
+
+     ! --- Slope dTA/dpH (same approximation as MATLAB version) ---
+     Slope = ln10 * ( HCO3 + 4.0*CO3 + BAlk*H/(KBF + H) + OH + H )
+
+     ! --- Newton step ---
+     deltapH = Residual / Slope
+
+     ! --- Limit step size ---
+     DO WHILE (abs(deltapH) > 1.0)
+        deltapH = deltapH / 2.0
+     END DO
+
+     ! --- Update pH ---
+     pHx = pHx + deltapH
+
+     count = count + 1
+
+  END DO
+
+END SUBROUTINE Cal_pHfromTAfCO2
+
+
+SUBROUTINE Cal_pHfromTATC_1(TAx, TCx, pHx, K1F, K2F, TBF, KBF, KWF, KP1F, KP2F, KP3F,&
+                           & TPF, TSiF, TSF, KSF, KSiF, TFF, KFF)
+
+  REAL,     INTENT(in) :: TAx, TCx
+  REAL,     INTENT(in) :: K1F, K2F, TBF, KBF, KWF, KP1F, KP2F, KP3F, TPF, TSiF, TSF, KSF, TFF, KFF, KSiF
+  REAL,     INTENT(out):: pHx
+
+  !local
+
+  REAL                 :: H, Denom, CAlk, BAlk, OH, PhosTop, PhosBot, PAlk, SiAlk, &
+                        & FREEtoTOT, Hfree, HSO4, HF, Residual, Slope, deltapH, pHTol, ln10
+  REAL                 :: pH0, dCAlk_dH, dBAlk_dH, dOH_dH
+
+  INTEGER :: count
+  INTEGER :: max_count
+
+
 
   pHx      = 8.        !This is the first guess
   pHTol    = 0.0001    !tolerance for iterations end
@@ -1286,6 +1671,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
     Slope     = ln10*(TCx*K1F*H*(H*H + K1F*K2F + 4.*H*K2F)/Denom/Denom &
               & + BAlk*H/(KBF + H) + OH + H)
     deltapH   = Residual/Slope !% this is Newton's method
+
     ! to keep the jump from being too big;
     DO WHILE (abs(deltapH) > 1)
        deltapH = deltapH/2
@@ -1295,7 +1681,130 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00)      ! Modified by FB, 2020
     count = count + 1
   END DO
 
-  END SUBROUTINE Cal_pHfromTATC
+  END SUBROUTINE Cal_pHfromTATC_1
+
+  !=======================================================================
+!  Subroutine GoodH0_TC
+!  ---------------------
+!  Analytic approximation for [H+] initial guess for TA–TC system.
+!  Following Munhoven (2013) and mocsy (OE15).
+!
+!  INPUT:
+!     CBAlk : Total Alkalinity (same units as TC, TB)
+!     TC    : Total dissolved inorganic carbon
+!     TB    : Total borate
+!     K1,K2 : Carbonic acid dissociation constants
+!     KB    : Borate dissociation constant
+!
+!  OUTPUT:
+!     H0    : Initial guess for [H+] (mol/kg)
+!
+!=======================================================================
+SUBROUTINE GoodH0_TC(CBAlk, TC, TB, K1, K2, KB, H0)
+  IMPLICIT NONE
+  REAL(KIND=8), INTENT(IN)  :: CBAlk, TC, TB, K1, K2, KB
+  REAL(KIND=8), INTENT(OUT) :: H0
+  REAL(KIND=8) :: c2, c1, c0, c21min, sq21
+  REAL(KIND=8) :: Hmin, Hpoly
+  REAL(KIND=8) :: eps
+
+  eps = 1.0d-30
+
+  !--- Build simplified polynomial coefficients (Munhoven 2013) ----
+  c2 = KB * (1.0d0 - TB/CBAlk) + K1 * (1.0d0 - TC/CBAlk)
+  c1 = K1 * ( KB * (1.0d0 - TB/CBAlk - TC/CBAlk) + K2 * (1.0d0 - 2.0d0*TC/CBAlk ) )
+  c0 = K1 * K2 * KB * (1.0d0 - (2.0d0*TC + TB)/CBAlk)
+
+  !--- Discriminant for quadratic-like analysis ---------------------
+  c21min = c2*c2 - 3.0d0*c1
+
+  IF (c21min > eps) THEN
+     sq21 = SQRT(c21min)
+
+     !--- compute Hmin (extremum location) ---------------------------
+     IF (c2 < 0.0d0) THEN
+        Hmin = (sq21 - c2) / 3.0d0
+     ELSE
+        IF (ABS(c2 + sq21) < eps) THEN
+           Hmin = 1.0d-7   ! avoid division by zero
+        ELSE
+           Hmin = -c1 / (c2 + sq21)
+        END IF
+     END IF
+
+     !--- evaluate the polynomial at Hmin ----------------------------
+     Hpoly = Hmin*Hmin*Hmin + c2*Hmin*Hmin + c1*Hmin + c0
+
+     !--- main criterion: if Hpoly < 0, compute nearby root ----------
+     IF (Hpoly < 0.0d0) THEN
+        H0 = Hmin + SQRT(-Hpoly / (sq21 + eps))
+     ELSE
+        ! fallback to neutral
+        H0 = 1.0d-7
+     END IF
+
+  ELSE
+     ! Discriminant negative → no reliable algebraic solution.
+     H0 = 1.0d-7
+  END IF
+
+  ! fail-safes
+  IF (H0 <= 0.0d0 .OR. H0 /= H0) THEN
+     H0 = 1.0d-7
+  END IF
+
+END SUBROUTINE GoodH0_TC
+
+
+!=======================================================================
+!  Subroutine pH0_from_TC
+!  ----------------------
+!  Wrapper that implements mocsy / PyCO2SYS logic:
+!
+!     - If TA (CBAlk) <= 0          → pH ~ 3 (acidic extreme)
+!     - If TA very large            → pH ~ 10 (basic extreme)
+!     - If 0 < TA < 2*TC + TB       → use GoodH0_TC approximation
+!     - Otherwise fallback to default
+!
+!  INPUT:
+!     CBAlk : total alkalinity
+!     TC    : total DIC
+!     TB    : total borate
+!     K1,K2,KB : dissociation constants on SAME pH scale
+!
+!  OUTPUT:
+!     pH0 : initial guess pH (same scale as constants)
+!
+!=======================================================================
+SUBROUTINE pH0_from_TC(CBAlk, TC, TB, K1, K2, KB, pH0)
+  IMPLICIT NONE
+  REAL(KIND=8), INTENT(IN)  :: CBAlk, TC, TB, K1, K2, KB
+  REAL(KIND=8), INTENT(OUT) :: pH0
+  REAL(KIND=8) :: H0
+
+  ! Case 1: Negative alkalinity → acidic default
+  IF (CBAlk <= 0.0d0) THEN
+     H0 = 1.0d-3     ! pH = 3
+     pH0 = -LOG10(H0)
+     RETURN
+  END IF
+
+  ! Case 2: Very high alkalinity relative to DIC → very basic
+  IF (CBAlk >= 2.0d0*TC + TB) THEN
+     H0 = 1.0d-10    ! pH = 10
+     pH0 = -LOG10(H0)
+     RETURN
+  END IF
+
+  ! Case 3: mid-range → use Munhoven analytic approximation
+  CALL GoodH0_TC(CBAlk, TC, TB, K1, K2, KB, H0)
+
+  ! Final guard
+  IF (H0 <= 0.0d0) H0 = 1.0d-7
+
+  pH0 = -LOG10(H0)
+
+END SUBROUTINE pH0_from_TC
 
   SUBROUTINE Cal_fCO2fromTCpH(TCx,pHx,fCO2x,CO2,K1,K2,K0)       ! Modified by FB, 2020
 
