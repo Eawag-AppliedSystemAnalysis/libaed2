@@ -408,7 +408,7 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
    AED_REAL :: Ko,kCH4,KCO2, CH4solub
    AED_REAL :: Tabs,windHt,atm
    AED_REAL :: A1,A2,A3,A4,B1,B2,B3,logC
-   AED_REAL :: a,b,c,dcf
+   AED_REAL :: a,b,c,dcf = 1.0D0
    AED_REAL :: ca, bc, cb, carba, bicarb, carb, om_cal, om_arg
    AED_REAL :: p00,p10,p01,p20,p11,p02
 
@@ -545,7 +545,7 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
 
        IF (data%kivu_mode) THEN
           talk = 11960*S       ! Relationship from Wüest et al., 2009, added by FB, 2020
-          talk = talk / 1.0D6      ! change unit to mol/kgSW
+          talk = talk / (1.0D6 *dcf)     ! change unit to mol/kgSW
        ENDIF
 
        CALL CO2SYS(T,S,talk,TCO2,pCO2,CO2,pH,pK1,pK2) ! Modified by FB, 2020
@@ -555,8 +555,8 @@ SUBROUTINE aed2_calculate_surface_carbon(data,column,layer_idx)
        ! pCO2 = pCO2*1.0D6   ! partial pressure of co2 in water
        ! _STATE_VAR_(data%id_talk) = talk*(1.0D6)           ! total alkalinity (umol/kg)
        _DIAG_VAR_(data%id_pco2) = pCO2
-       _DIAG_VAR_(data%id_co2) = CO2  ! Added by FB, 2020
-       _DIAG_VAR_(data%id_talk) = talk * 1.0D6
+       _DIAG_VAR_(data%id_co2) = CO2 * dcf ! Added by FB, 2020
+       _DIAG_VAR_(data%id_talk) = talk * (1.0D6*dcf)
        _DIAG_VAR_(data%id_pK1) = pK1
        _DIAG_VAR_(data%id_pK2) = pK2      
 
@@ -790,7 +790,7 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
 !LOCALS
    ! State
    AED_REAL :: dic, pH=7., CO2, pCO2, temp, salt, pK1, pK2 ! Added co2, FB, 2020
-   AED_REAL :: S,T,a,b,c,dcf,talk = 0.,TCO2 = 0.,ca,bc,cb,HENRY
+   AED_REAL :: S,T,a,b,c,dcf=1.0D0,talk = 0.,TCO2 = 0.,ca,bc,cb,HENRY
    AED_REAL :: p00,p10,p01,p20,p11,p02
 
 !-------------------------------------------------------------------------------
@@ -827,7 +827,7 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
                  - 1.120083d-6*T**4 + 6.536332d-9*T**5+a*S+b*S**1.5+c*S**2)/1.0D3
 
         ! next, use the CO2 module (same to CDIAC module) to calc pCO2
-        talk  = talk / 1.0D6      ! change unit to mol/kgSW
+        talk  = talk / (1.0D6 * dcf)     ! change unit to mol/kgSW
         TCO2  = dic / (1.002D6*dcf) ! change unit to mol/kgSW
         !print*, "---dcf:", dcf
 
@@ -902,8 +902,9 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
       ENDIF
 
       IF (data%kivu_mode) THEN
+         !print*, "---dcf:", dcf
          talk = 11960*S       ! Relationship from Wüest et al., 2009, added by FB, 2020
-         talk = talk / 1.0D6      ! change unit to mol/kgSW
+         talk = talk / (1.0D6 * dcf)     ! change unit to mol/kgSW
       ENDIF
 
       !CALL CO2DYN ( TCO2, talk, T, S, pCO2, pH, HENRY, ca, bc, cb)
@@ -914,9 +915,9 @@ SUBROUTINE aed2_equilibrate_carbon(data,column,layer_idx)
 
     !# SET PCO2 & pH as returned
     _DIAG_VAR_(data%id_pco2) = pCO2
-    _DIAG_VAR_(data%id_co2) = CO2               ! Added by FB, 2020
+    _DIAG_VAR_(data%id_co2) = CO2 * dcf               ! Added by FB, 2020
     _STATE_VAR_(data%id_pH)  =  pH
-    _DIAG_VAR_(data%id_talk) = talk * 1.0D6
+    _DIAG_VAR_(data%id_talk) = talk * (1.0D6 * dcf)
     _DIAG_VAR_(data%id_pK1) = pK1 
     _DIAG_VAR_(data%id_pK2) = pK2  
 
@@ -1029,7 +1030,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00,pK1,pK2)      ! Modified by FB
   REAL,    INTENT(IN)   :: TC0, TA0
   REAL,    INTENT(OUT)  :: pK1, pK2, fCO2xx,CO2,pH00              ! Added co2, by FB, 2020
   ! LOCAL
-  REAL                  :: PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, KSi = 0., K1, K2, TB, TP, TS, TF, TSi, TC, TA
+  REAL                  :: PRE, K0, KS, KF, fH, KB, KW, KP1, KP2, KP3, KSi=0., K1, K2, TB, TP, TS, TF, TSi, TC, TA
 
   !===========Initialize the conditions =========================!
 
@@ -1085,7 +1086,7 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00,pK1,pK2)      ! Modified by FB
                            & K1fac, K2fac, KWfac, KFfac, KSfac, KP1fac, KP2fac,  &
                            & KP3fac, KSifac, pHfactor, Delta, b, P1atm, FugFac,  &
                            & VPWP, VPCorrWP, VPSWWP, VPFac, lnKBfac, KBfac
-
+  KSi = 0.   !added for a warning 
   TempK = TempC + 273.15
   RT    = 83.1451*TempK
   logTempK = log(TempK)
@@ -1171,20 +1172,20 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00,pK1,pK2)      ! Modified by FB
 
   ! ----- K1 and K2 for carbonic acid -----  Millero et al. (2007), ionic strength by Modeste 2025
 
-   Term_pK10 = -114.3106 + 5773.67/TempK + 17.779524 * logTempK
-   Term_A1   = 35.2911*sqrt(IonS) + 0.8491*IonS - 0.32*IonS**1.5 + 0.055*IonS**2
-   Term_B1   = -1583.09*sqrt(IonS)
-   Term_C1   = -5.4366*sqrt(IonS)
-   pK1       = Term_pK10 + Term_A1 + Term_B1/TempK + Term_C1*logTempK
-   K1        = 10.0**(-pK1)
+   !Term_pK10 = -114.3106 + 5773.67/TempK + 17.779524 * logTempK
+   !Term_A1   = 35.2911*sqrt(IonS) + 0.8491*IonS - 0.32*IonS**1.5 + 0.055*IonS**2
+   !Term_B1   = -1583.09*sqrt(IonS)
+   !Term_C1   = -5.4366*sqrt(IonS)
+   !pK1       = Term_pK10 + Term_A1 + Term_B1/TempK + Term_C1*logTempK
+   !K1        = 10.0**(-pK1)
 
 
-   Term_pK20 = -83.2997 + 4821.38/TempK + 13.5962 * logTempK
-   Term_A2   = 38.2746*sqrt(IonS) + 1.6057*IonS - 0.647*IonS**1.5 + 0.113*IonS**2
-   Term_B2   = -1738.16*sqrt(IonS)
-   Term_C2   = -6.0346*sqrt(IonS)
-   pK2       = Term_pK20 + Term_A2 + Term_B2/TempK + Term_C2*logTempK
-   K2        = 10.0**(-pK2)
+   !Term_pK20 = -83.2997 + 4821.38/TempK + 13.5962 * logTempK
+   !Term_A2   = 38.2746*sqrt(IonS) + 1.6057*IonS - 0.647*IonS**1.5 + 0.113*IonS**2
+   !Term_B2   = -1738.16*sqrt(IonS)
+   !Term_C2   = -6.0346*sqrt(IonS)
+   !pK2       = Term_pK20 + Term_A2 + Term_B2/TempK + Term_C2*logTempK
+   !K2        = 10.0**(-pK2)
 
   ! ----- K1 and K2 for carbonic acid -----  Cai & Wang 1998, by Modeste 2025
    !   TermFT_1 = 200.1 / TempK + 0.322
@@ -1197,19 +1198,19 @@ SUBROUTINE CO2SYS(TEM,Sal,TA0,TC0,fCO2xx,CO2,pH00,pK1,pK2)      ! Modified by FB
 
 
     !-------- K1 and K2 for carbonic acid --------! By Millero et al (2006) (ionic strength relations) =====> By Modeste 2025
-  !Term_pK10 = -126.34048 + 6320.813 / TempK + 19.568224 * logTempK
-  !Term_A1 = 13.4191*Sal**0.5 + 0.0331*Sal - 5.33e-05*Sal**2
-  !Term_B1 = -530.123*Sal**0.5 - 6.103*Sal
-  !Term_C1 = -2.06950*Sal**0.5
-  !pK1 =  Term_pK10 + Term_A1 + Term_B1 / TempK + Term_C1 * logTempK
-  !K1  = 10.**(-pK1)  ! this is on the SWS pH scale in mol/kg-SW
+  Term_pK10 = -126.34048 + 6320.813 / TempK + 19.568224 * logTempK
+  Term_A1 = 13.4191*Sal**0.5 + 0.0331*Sal - 5.33e-05*Sal**2
+  Term_B1 = -530.123*Sal**0.5 - 6.103*Sal
+  Term_C1 = -2.06950*Sal**0.5
+  pK1 =  Term_pK10 + Term_A1 + Term_B1 / TempK + Term_C1 * logTempK
+  K1  = 10.**(-pK1)  ! this is on the SWS pH scale in mol/kg-SW
     
-  !Term_pK20 = -90.18333 + 5143.692 / TempK + 14.613358 * logTempK
-  !Term_A2 = 21.0894*Sal**0.5 + 0.1248*Sal - 3.687e-04*Sal**2
-  !Term_B2 = -772.483*Sal**0.5 - 20.051*Sal
-  !Term_C2 = -3.3336*Sal**0.5
-  !pK2 =  Term_pK20 + Term_A2 + Term_B2 / TempK + Term_C2 * logTempK
-  !K2  = 10.**(-pK2)
+  Term_pK20 = -90.18333 + 5143.692 / TempK + 14.613358 * logTempK
+  Term_A2 = 21.0894*Sal**0.5 + 0.1248*Sal - 3.687e-04*Sal**2
+  Term_B2 = -772.483*Sal**0.5 - 20.051*Sal
+  Term_C2 = -3.3336*Sal**0.5
+  pK2 =  Term_pK20 + Term_A2 + Term_B2 / TempK + Term_C2 * logTempK
+  K2  = 10.**(-pK2)
 
   !============correct constants for pressure=================!
   !------correct K1, k2, kB for pressure----------!
